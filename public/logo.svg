@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Fondo del logo (gradiente) -->
+  <rect width="120" height="120" rx="24" fill="url(#paint0_linear)" />
+  
+  <!-- Letra K -->
+  <path d="M40 30H50V54L70 30H83L60 56L85 90H72L54 64L50 68V90H40V30Z" fill="white"/>
+  
+  <!-- Símbolo de moneda/gráfico -->
+  <path d="M75 50C75 46.134 78.134 43 82 43C85.866 43 89 46.134 89 50C89 53.866 85.866 57 82 57C78.134 57 75 53.866 75 50Z" fill="#22C55E"/>
+  <path d="M40 78C40 74.134 43.134 71 47 71C50.866 71 54 74.134 54 78C54 81.866 50.866 85 47 85C43.134 85 40 81.866 40 78Z" fill="#4F46E5"/>
+  <path d="M55 64C55 60.134 58.134 57 62 57C65.866 57 69 60.134 69 64C69 67.866 65.866 71 62 71C58.134 71 55 67.866 55 64Z" fill="#EC4899"/>
+  
+  <!-- Línea de tendencia -->
+  <path d="M47 78L62 64L82 50" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- Definición del gradiente -->
+  <defs>
+    <linearGradient id="paint0_linear" x1="0" y1="0" x2="120" y2="120" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#4F46E5" />
+      <stop offset="0.5" stop-color="#8B5CF6" />
+      <stop offset="1" stop-color="#EC4899" />
+    </linearGradient>
+  </defs>
+</svg>
