@@ -10,3 +10,4 @@ node_modules
 *.tgz
 # Local Netlify folder
 .netlify
+.next/
