@@ -1,4 +1,3 @@
-// src/app/dashboard/DashboardShell.tsx
 "use client";
 
 import Link from "next/link";
@@ -9,19 +8,16 @@ import {
     CreditCard,
     Target,
     BellRing,
-    Settings,
     LogOut,
-    PlusCircle,
-    Menu,
-    X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useState, ReactNode } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Avatar, AvatarImage, AvatarFallback } from "../../components/ui/avatar";
+import { ReactNode } from "react";
 
 export default function DashboardShell({ children }: { children: ReactNode }) {
     const { data: session } = useSession();
     const pathname = usePathname();
-    const [sidebarOpen, setSidebarOpen] = useState(false);
 
     const navItems = [
         {
@@ -44,84 +40,35 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
             href: "/dashboard/alerts",
             icon: <BellRing className="h-5 w-5" />,
         },
-        {
-            name: "Configuración",
-            href: "/dashboard/settings",
-            icon: <Settings className="h-5 w-5" />,
-        },
     ];
 
     return (
-        <div className="flex h-screen bg-background">
-            {/* Sidebar escritorio */}
-            <aside className="hidden md:flex flex-col w-64 border-r bg-card">
-                <div className="p-6">
-                    <Link href="/" className="flex items-center gap-2">
-                        <span className="font-bold text-2xl kipo-gradient">
-                            Kipo
-                        </span>
-                    </Link>
-                </div>
-                <nav className="flex-1 px-4 space-y-1">
-                    {navItems.map(({ name, href, icon }) => (
-                        <Link
-                            key={href}
-                            href={href}
-                            className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm ${
-                                pathname === href
-                                    ? "bg-primary text-primary-foreground"
-                                    : "hover:bg-accent hover:text-accent-foreground"
-                            }`}
-                        >
-                            {icon}
-                            {name}
-                        </Link>
-                    ))}
-                </nav>
-                <div className="p-4 border-t flex flex-col gap-2">
-                    
-                    <Button
-                        variant="ghost"
-                        className="w-full justify-start gap-2 mt-4 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                        onClick={() => signOut({ callbackUrl: "/" })}
-                    >
-                        <LogOut className="h-4 w-4" />
-                        Cerrar sesión
-                    </Button>
-                </div>
-            </aside>
+        <div className="flex flex-col h-screen bg-background">
+            {/* Navbar Superior (siempre visible) */}
+            <header className="flex items-center justify-between p-4 bg-card border-b">
+                <Link href="/" className="flex items-center gap-2">
+                    <span className="font-bold text-2xl kipo-gradient">
+                        Kipo
+                    </span>
+                </Link>
+                <Button
+                    variant="ghost"
+                    className="gap-2 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                    onClick={() => signOut({ callbackUrl: "/" })}
+                >
+                    <LogOut className="h-4 w-4" />
+                    Cerrar sesión
+                </Button>
+            </header>
 
-            {/* Sidebar móvil */}
-            <div
-                className={`fixed inset-0 z-40 md:hidden ${
-                    sidebarOpen ? "block" : "hidden"
-                }`}
-            >
-                <div
-                    className="fixed inset-0 bg-background/80 backdrop-blur-sm"
-                    onClick={() => setSidebarOpen(false)}
-                />
-                <div className="fixed inset-y-0 left-0 z-40 w-64 bg-card shadow-lg flex flex-col">
-                    <div className="p-6 flex justify-between items-center">
-                        <Link href="/" className="flex items-center gap-2">
-                            <span className="font-bold text-2xl kipo-gradient">
-                                Kipo
-                            </span>
-                        </Link>
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setSidebarOpen(false)}
-                        >
-                            <X className="h-5 w-5" />
-                        </Button>
-                    </div>
-                    <nav className="flex-1 px-4 space-y-1">
+            <div className="flex flex-1 overflow-hidden">
+                {/* Sidebar escritorio */}
+                <aside className="hidden md:flex flex-col w-64 border-r bg-card">
+                    <nav className="flex-1 px-4 py-6 space-y-1">
                         {navItems.map(({ name, href, icon }) => (
                             <Link
                                 key={href}
                                 href={href}
-                                onClick={() => setSidebarOpen(false)}
                                 className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm ${
                                     pathname === href
                                         ? "bg-primary text-primary-foreground"
@@ -133,21 +80,59 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
                             </Link>
                         ))}
                     </nav>
-                    <div className="p-4 border-t">
-                        <Button
-                            variant="ghost"
-                            className="w-full justify-start gap-2 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                            onClick={() => signOut({ callbackUrl: "/" })}
-                        >
-                            <LogOut className="h-4 w-4" />
-                            Cerrar sesión
-                        </Button>
+
+                    {/* Card de usuario al fondo */}
+                    <div className="p-4">
+                        <Card>
+                            <CardContent className="flex items-center gap-3">
+                                <Avatar>
+                                    {session?.user?.image ? (
+                                        <AvatarImage
+                                            src={session.user.image}
+                                            alt={session.user.name ?? "Avatar"}
+                                        />
+                                    ) : (
+                                        <AvatarFallback>
+                                            {session?.user?.name?.[0] ?? "U"}
+                                        </AvatarFallback>
+                                    )}
+                                </Avatar>
+                                <div className="flex flex-col">
+                                    <span className="font-medium">
+                                        {session?.user?.name}
+                                    </span>
+                                    <span className="text-xs text-muted-foreground">
+                                        {session?.user?.email}
+                                    </span>
+                                </div>
+                            </CardContent>
+                        </Card>
                     </div>
-                </div>
+                </aside>
+
+                {/* Contenido principal */}
+                <main className="flex-1 overflow-auto p-4 md:p-6 pb-16 md:pb-0">
+                    {children}
+                </main>
             </div>
 
-            {/* Contenido principal */}
-            <main className="flex-1 overflow-auto p-4 md:p-6">{children}</main>
+            {/* Menú inferior móvil */}
+            <nav className="fixed bottom-0 inset-x-0 md:hidden bg-card border-t flex justify-around py-2">
+                {navItems.map(({ name, href, icon }) => (
+                    <Link
+                        key={href}
+                        href={href}
+                        className={`flex flex-col items-center text-xs ${
+                            pathname === href
+                                ? "text-primary"
+                                : "text-muted-foreground"
+                        } hover:text-primary`}
+                    >
+                        {icon}
+                        <span className="mt-1">{name}</span>
+                    </Link>
+                ))}
+            </nav>
         </div>
     );
 }

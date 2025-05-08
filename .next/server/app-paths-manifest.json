@@ -1,3 +1,22 @@
 {
-  "/login/page": "app/login/page.js"
+  "/_not-found": "app/_not-found.js",
+  "/api/auth/[...nextauth]/route": "app/api/auth/[...nextauth]/route.js",
+  "/api/auth/signup/route": "app/api/auth/signup/route.js",
+  "/api/goals/[id]/progress/route": "app/api/goals/[id]/progress/route.js",
+  "/api/goals/route": "app/api/goals/route.js",
+  "/login/page": "app/login/page.js",
+  "/onboarding/page": "app/onboarding/page.js",
+  "/signup/page": "app/signup/page.js",
+  "/page": "app/page.js",
+  "/api/auth/onboarding/route": "app/api/auth/onboarding/route.js",
+  "/api/transactions/route": "app/api/transactions/route.js",
+  "/dashboard/goals/[id]/add-progress/page": "app/dashboard/goals/[id]/add-progress/page.js",
+  "/dashboard/alerts/page": "app/dashboard/alerts/page.js",
+  "/dashboard/goals/page": "app/dashboard/goals/page.js",
+  "/dashboard/new-transaction/page": "app/dashboard/new-transaction/page.js",
+  "/dashboard/new-goal/page": "app/dashboard/new-goal/page.js",
+  "/dashboard/settings/page": "app/dashboard/settings/page.js",
+  "/dashboard/page": "app/dashboard/page.js",
+  "/dashboard/transactions/page": "app/dashboard/transactions/page.js",
+  "/dashboard/goals/[id]/page": "app/dashboard/goals/[id]/page.js"
 }

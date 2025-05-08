@@ -8,10 +8,15 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import Goal from "../../../models/Goal";
-import Transaction from "../../../models/Transaction";
+import User from "../../../models/User";
 import { generateSavingPlan } from "@/lib/financialAI";
 
-// Validación con Zod
+// Define aquí la interfaz de los campos que esperamos del usuario
+interface IUserLean {
+    monthlyIncome?: number;
+    monthlyExpenses?: number;
+}
+
 const goalSchema = z.object({
     title: z.string().min(1, "El título es requerido"),
     description: z.string().optional(),
@@ -38,27 +43,19 @@ export async function createGoal(formData: FormData) {
             return { success: false, error: "No autenticado" };
         }
 
-        // 2) Validar datos
+        // 2) Validar datos de entrada
         const raw = Object.fromEntries(formData.entries());
         const validated: GoalForm = goalSchema.parse(raw);
 
         // 3) Conectar a la BD
         await connectDB();
 
-        // 4) Leer transacciones últimos 30 días
-        const since = new Date();
-        since.setDate(since.getDate() - 30);
-        const txs = await Transaction.find({
-            user: session.user.id,
-            date: { $gte: since },
-        }).lean();
-
-        const monthlyIncome = txs
-            .filter((t) => t.type === "ingreso")
-            .reduce((sum, t) => sum + t.amount, 0);
-        const monthlyExpenses = txs
-            .filter((t) => t.type === "gasto")
-            .reduce((sum, t) => sum + t.amount, 0);
+        // 4) Leer montos del usuario (tipando el resultado de .lean())
+        const userDoc = await User.findById(session.user.id)
+            .lean<IUserLean>()
+            .exec();
+        const monthlyIncome = userDoc?.monthlyIncome ?? 0;
+        const monthlyExpenses = userDoc?.monthlyExpenses ?? 0;
 
         // 5) Generar plan de ahorro sugerido
         const suggestedPlan = await generateSavingPlan({
@@ -78,10 +75,10 @@ export async function createGoal(formData: FormData) {
             suggestedPlan,
         });
 
-        // 7) Revalidar ruta
+        // 7) Revalidar ruta de listado de metas
         revalidatePath("/dashboard/goals");
 
-        // 8) Construir un objeto plano para devolver
+        // 8) Devolver un objeto plano
         const plain = {
             id: createdDoc._id.toString(),
             title: createdDoc.title,
@@ -103,7 +100,6 @@ export async function createGoal(formData: FormData) {
 
         return { success: true, data: plain };
     } catch (err: any) {
-        // Zod
         if (err instanceof z.ZodError) {
             return {
                 success: false,

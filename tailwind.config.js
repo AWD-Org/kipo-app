@@ -1,6 +1,5 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-
   content: [
     './pages/**/*.{ts,tsx}',
     './components/**/*.{ts,tsx}',
@@ -17,6 +16,14 @@ module.exports = {
     },
     extend: {
       colors: {
+        // Nueva paleta monocromática
+        'kipo-black': '#000000', 
+        'kipo-dark': '#333333',
+        'kipo-gray': '#666666',
+        'kipo-medium': '#999999',
+        'kipo-light': '#CCCCCC',
+        'kipo-white': '#FFFFFF',
+        
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",

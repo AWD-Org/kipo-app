@@ -1,4 +1,3 @@
-// src/app/dashboard/new-goal/page.tsx
 "use client";
 
 import { useState } from "react";
@@ -18,14 +17,14 @@ import { Loader2, ArrowLeft, CalendarIcon } from "lucide-react";
 import { createGoal } from "@/app/actions/createGoal";
 import { calculateProgress, formatCurrency } from "@/lib/utils";
 
-const CATEGORIES = ["ahorro", "inversión", "deuda", "compra", "otro"] as const;
-const PRIORITIES = ["baja", "media", "alta"] as const;
+const CATEGORIES = ["ahorro", "inversión", "deuda", "compra", "otro"];
+const PRIORITIES = ["baja", "media", "alta"];
 const REMINDERS = [
     ["none", "Sin recordatorios"],
     ["daily", "Diario"],
     ["weekly", "Semanal"],
     ["monthly", "Mensual"],
-] as const;
+];
 
 export default function NewGoalPage() {
     const router = useRouter();
@@ -34,7 +33,7 @@ export default function NewGoalPage() {
         title: "",
         description: "",
         targetAmount: "",
-        currentAmount: "0",
+        currentAmount: "",
         startDate: new Date().toISOString().substr(0, 10),
         targetDate: "",
         category: "ahorro",
@@ -45,32 +44,22 @@ export default function NewGoalPage() {
     const [error, setError] = useState("");
     const [success, setSuccess] = useState(false);
 
-    const onChange = (
-        e: React.ChangeEvent<
-            HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
-        >
-    ) => {
+    const onChange = (e: any) => {
         const { name, value } = e.target;
         setForm((f) => ({ ...f, [name]: value }));
     };
 
     const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-        if (!session?.user?.id) {
-            setError("Debes iniciar sesión");
-            return;
-        }
+        if (!session) return setError("Debes iniciar sesión");
         setLoading(true);
-        setError("");
         const res = await createGoal(new FormData(e.currentTarget));
         setLoading(false);
-
         if (!res.success) {
             setError(res.error || "Error creando meta");
-            return;
+        } else {
+            router.push("/dashboard/goals");
         }
-        // Redirigir al listado de metas:
-        router.push("/dashboard/goals");
     };
 
     const prog = calculateProgress(
@@ -80,7 +69,7 @@ export default function NewGoalPage() {
 
     return (
         <form onSubmit={onSubmit} className="space-y-8 max-w-md mx-auto py-12">
-            <header className="flex justify-between items-center">
+            <div className="flex justify-between items-center">
                 <Button
                     variant="ghost"
                     onClick={() => router.back()}
@@ -90,9 +79,8 @@ export default function NewGoalPage() {
                     <ArrowLeft size={16} /> Volver
                 </Button>
                 <h1 className="text-2xl font-bold">Nueva meta</h1>
-            </header>
+            </div>
 
-            {/* Título */}
             <Card>
                 <CardHeader>
                     <CardTitle>Título</CardTitle>
@@ -107,7 +95,6 @@ export default function NewGoalPage() {
                 </CardContent>
             </Card>
 
-            {/* Descripción */}
             <Card>
                 <CardHeader>
                     <CardTitle>Descripción</CardTitle>
@@ -122,7 +109,6 @@ export default function NewGoalPage() {
                 </CardContent>
             </Card>
 
-            {/* Montos */}
             <Card>
                 <CardHeader>
                     <CardTitle>Montos</CardTitle>
@@ -160,8 +146,7 @@ export default function NewGoalPage() {
                             min="0"
                         />
                     </div>
-
-                    {!!form.targetAmount && (
+                    {form.targetAmount && (
                         <div>
                             <div className="flex justify-between text-sm">
                                 <span>Progreso</span>
@@ -190,7 +175,6 @@ export default function NewGoalPage() {
                 </CardContent>
             </Card>
 
-            {/* Fechas */}
             <div className="grid grid-cols-2 gap-4">
                 <Card>
                     <CardHeader>
@@ -198,13 +182,11 @@ export default function NewGoalPage() {
                     </CardHeader>
                     <CardContent>
                         <div className="relative">
-                            <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2" />
                             <Input
                                 name="startDate"
                                 type="date"
                                 value={form.startDate}
                                 onChange={onChange}
-                                className="pl-10"
                                 required
                             />
                         </div>
@@ -216,13 +198,11 @@ export default function NewGoalPage() {
                     </CardHeader>
                     <CardContent>
                         <div className="relative">
-                            <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2" />
                             <Input
                                 name="targetDate"
                                 type="date"
                                 value={form.targetDate}
                                 onChange={onChange}
-                                className="pl-10"
                                 required
                             />
                         </div>
@@ -230,7 +210,6 @@ export default function NewGoalPage() {
                 </Card>
             </div>
 
-            {/* Categoría y prioridad */}
             <div className="grid grid-cols-2 gap-4">
                 <Card>
                     <CardHeader>
@@ -272,7 +251,6 @@ export default function NewGoalPage() {
                 </Card>
             </div>
 
-            {/* Recordatorios */}
             <Card>
                 <CardHeader>
                     <CardTitle>Recordatorios</CardTitle>
@@ -294,8 +272,11 @@ export default function NewGoalPage() {
             </Card>
 
             {error && <div className="text-red-600">{error}</div>}
+            {success && (
+                <div className="text-green-600">Meta creada con éxito</div>
+            )}
 
-            <CardFooter className="flex justify-end gap-2">
+            <div className="flex justify-end gap-2">
                 <Button variant="outline" onClick={() => router.back()}>
                     Cancelar
                 </Button>
@@ -309,7 +290,7 @@ export default function NewGoalPage() {
                         "Guardar meta"
                     )}
                 </Button>
-            </CardFooter>
+            </div>
         </form>
     );
 }

@@ -1,13 +1,25 @@
+# netlify.toml
+
 [build]
-  command = "npm run build"
-  publish = ".next"
+  command   = "npm run build"
+  publish   = ".next"
   functions = "netlify/functions"
 
 [dev]
-  command = "npm run dev"
-  framework = "#custom"
-  port = 8888
+  command    = "npm run dev"
+  framework  = "#custom"
+  port       = 8888
   targetPort = 3000
 
+# Plugin para Next.js
 [[plugins]]
   package = "@netlify/plugin-nextjs"
+
+[functions]
+  directory = "netlify/functions"
+
+# Configuración de la función programada
+[scheduled-functions.sendReminders]
+  # Corre todos los días a las 08:00 UTC
+  schedule = "0 8 * * *"
+  function = "send-reminders"

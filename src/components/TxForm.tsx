@@ -255,14 +255,13 @@ export default function NewTransactionPage() {
                 {/* Fecha */}
                 <div className="relative">
                     <label htmlFor="date">Fecha</label>
-                    <CalendarIcon className="absolute left-3 top-[38px] text-muted-foreground" />
+
                     <Input
                         id="date"
                         name="date"
                         type="date"
                         value={formData.date}
                         onChange={handleChange}
-                        className="pl-8"
                         required
                     />
                 </div>

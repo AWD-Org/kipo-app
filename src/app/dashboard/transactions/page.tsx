@@ -1,3 +1,4 @@
+// src/app/dashboard/transactions/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -9,7 +10,6 @@ import {
     CardTitle,
     CardDescription,
     CardContent,
-    CardFooter,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -102,32 +102,33 @@ function TransactionsList() {
 
     return (
         <div className="space-y-6">
-            {/* Header */}
-            <div className="flex justify-between items-center">
+            {/* Header: apila en móvil, fila en md+ */}
+            <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
                 <div>
                     <h1 className="text-3xl font-bold">Transacciones</h1>
                     <p className="text-muted-foreground">
                         Administra tus ingresos y gastos
                     </p>
                 </div>
-                <div className="flex gap-2">
-                    <Link href="/dashboard/new-transaction">
-                        <Button className="gap-1">
-                            <Plus size={16} /> Nueva transacción
-                        </Button>
-                    </Link>
+                <div className="flex flex-col sm:flex-row gap-2">
                     <Button
                         variant="outline"
+                        className="w-full sm:w-auto"
                         onClick={() => {
-                            /* TODO: export handler */
+                            /* TODO: manejar export */
                         }}
                     >
                         <Download size={16} /> Exportar
                     </Button>
+                    <Link href="/dashboard/new-transaction">
+                        <Button className="gap-1 w-full sm:w-auto">
+                            <Plus size={16} /> Nueva transacción
+                        </Button>
+                    </Link>
                 </div>
             </div>
 
-            {/* Filtros */}
+            {/* Filtros: columna en móvil, fila en md+ */}
             <div className="flex flex-col md:flex-row gap-4">
                 <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -138,7 +139,7 @@ function TransactionsList() {
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
                     <Button
                         variant={filterType === null ? "default" : "outline"}
                         onClick={() => setFilterType(null)}
@@ -177,13 +178,13 @@ function TransactionsList() {
             {/* Lista */}
             <Card>
                 <CardHeader>
-                    <CardTitle>Historial de transacciones</CardTitle>
+                    <CardTitle>Historial</CardTitle>
                     <CardDescription>
                         {isLoading
                             ? "Cargando..."
                             : error
                             ? error
-                            : `${filtered.length} transacciones encontradas`}
+                            : `${filtered.length} transacciones`}
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="p-0">
@@ -219,7 +220,6 @@ function TransactionsList() {
                         filtered.map(renderTx)
                     )}
                 </CardContent>
-                {/* Se ha eliminado el CardFooter para export */}
             </Card>
         </div>
     );

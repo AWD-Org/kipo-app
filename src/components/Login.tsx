@@ -46,7 +46,7 @@ export default function Login() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-12 dark:bg-slate-900">
+    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-12">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1 text-center">
           <CardTitle className="text-2xl font-bold">Iniciar sesión</CardTitle>
@@ -115,13 +115,7 @@ export default function Login() {
               Crear cuenta
             </Link>
           </div>
-          
-          <Button variant="outline" className="w-full" onClick={() => {
-            setEmail('demo@kipo-app.com');
-            setPassword('demo1234');
-          }}>
-            Usar credenciales de demostración
-          </Button>
+        
           
           <Link href="/" className="mx-auto flex items-center text-sm text-muted-foreground hover:text-primary">
             <ArrowRight className="mr-1 h-4 w-4" />

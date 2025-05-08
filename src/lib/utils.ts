@@ -48,18 +48,17 @@ export function calculateProgress(current: number, target: number): number {
 /**
  * Genera un color basado en una cadena (útil para categorías)
  * @param str - Cadena para generar el color
- * @returns String con color hex
+ * @returns String con color hex en escala de grises
  */
 export function stringToColor(str: string): string {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
     hash = str.charCodeAt(i) + ((hash << 5) - hash);
   }
-  let color = '#';
-  for (let i = 0; i < 3; i++) {
-    const value = (hash >> (i * 8)) & 0xFF;
-    color += ('00' + value.toString(16)).substr(-2);
-  }
+  // Convertir a escala de grises
+  const grayValue = Math.abs(hash) % 200; // Valor entre 0 y 200
+  const hexValue = (55 + grayValue).toString(16).padStart(2, '0'); // Asegurar valor entre 55 y 255
+  const color = `#${hexValue}${hexValue}${hexValue}`;
   return color;
 }
 
@@ -70,15 +69,14 @@ export function stringToColor(str: string): string {
  */
 export function generateCategoryColors(categories: string[]): Record<string, string> {
   const baseColors = [
-    '#4f46e5', // Indigo
-    '#8b5cf6', // Violet
-    '#ec4899', // Pink
-    '#ef4444', // Red
-    '#f97316', // Orange
-    '#eab308', // Yellow
-    '#22c55e', // Green
-    '#06b6d4', // Cyan
-    '#3b82f6', // Blue
+    '#000000', // Negro
+    '#333333', // Gris oscuro
+    '#666666', // Gris medio
+    '#999999', // Gris claro
+    '#CCCCCC', // Muy claro
+    '#444444', // Gris oscuro alternativo
+    '#777777', // Gris medio alternativo
+    '#AAAAAA', // Gris claro alternativo
   ];
 
   return categories.reduce((acc, category, index) => {
