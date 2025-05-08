@@ -1,73 +1,47 @@
+// src/components/ui/avatar.tsx
+"use client";
+
 import React from "react";
 
-interface AvatarRootProps {
-    /** Container classes */
+interface AvatarProps extends React.ImgHTMLAttributes<HTMLImageElement> {
+    /** URL de la imagen de avatar. Si no se pasa o está vacía, usará kipo por defecto */
+    src?: string;
+    /** Texto alternativo para la imagen */
+    alt?: string;
+    /** Clases CSS adicionales para el contenedor */
     className?: string;
-    /** Children: AvatarImage or AvatarFallback */
-    children: React.ReactNode;
 }
 
 /**
- * Root wrapper for Avatar component.
- * Usage:
- * <Avatar className="w-10 h-10">
- *   <AvatarImage src={...} alt="..." />
- *   <AvatarFallback>AB</AvatarFallback>
- * </Avatar>
+ * Avatar que muestra `src` si está definido y no vacío,
+ * o el PNG de Kipo en `/icons/avatar/kipo.png` en caso contrario.
  */
-export function Avatar({ className = "", children }: AvatarRootProps) {
+export function Avatar({
+    src,
+    alt = "Avatar",
+    className = "",
+    ...imgProps
+}: AvatarProps) {
+    const displaySrc =
+        typeof src === "string" && src.trim() !== ""
+            ? src
+            : "/icons/avatar/kipo.png"; // <–– ruta en public/
+
     return (
         <div
-            className={`inline-flex items-center justify-center overflow-hidden rounded-full bg-gray-200 text-gray-600 ${className}`.trim()}
+            className={[
+                "inline-flex overflow-hidden rounded-full bg-gray-200",
+                "items-center justify-center",
+                className,
+            ].join(" ")}
+            aria-label="Avatar"
         >
-            {children}
+            <img
+                src={displaySrc}
+                alt={alt}
+                className="w-full h-full object-cover"
+                {...imgProps}
+            />
         </div>
-    );
-}
-
-interface AvatarImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
-    /** URL of the avatar image */
-    src: string;
-    /** Alt text for the image */
-    alt?: string;
-    /** Additional classes */
-    className?: string;
-}
-
-/**
- * Renders the avatar image.
- */
-export function AvatarImage({
-    src,
-    alt = "",
-    className = "",
-    ...props
-}: AvatarImageProps) {
-    return (
-        <img
-            src={src}
-            alt={alt}
-            className={`w-full h-full object-cover ${className}`.trim()}
-            {...props}
-        />
-    );
-}
-
-interface AvatarFallbackProps {
-    /** Fallback content (initials or icon) */
-    children: React.ReactNode;
-    /** Additional classes */
-    className?: string;
-}
-
-/**
- * Fallback shown when no image is provided.
- */
-export function AvatarFallback({
-    children,
-    className = "",
-}: AvatarFallbackProps) {
-    return (
-        <span className={`font-medium ${className}`.trim()}>{children}</span>
     );
 }

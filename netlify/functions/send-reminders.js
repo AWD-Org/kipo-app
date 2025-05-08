@@ -18,7 +18,7 @@ async function connectDB() {
 
 // Genera el HTML del correo
 function buildReminderHtml(userName, goals) {
-    const primary = "#7c3aed";
+    const primary = "#333333";
     const items = goals
         .map(
             (g) => `

@@ -1,7 +1,9 @@
+// src/app/dashboard/page.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { useSession } from "next-auth/react";
+import Link from "next/link";
 import {
     Card,
     CardContent,
@@ -12,8 +14,8 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
-    PieChart,
-    Pie,
+    AreaChart,
+    Area,
     LineChart,
     Line,
     BarChart,
@@ -35,485 +37,368 @@ import {
     TrendingUp,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
-import Link from "next/link";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { fetchTransactions } from "@/store/thunks/transactionsThunks";
+import { fetchGoals } from "@/store/thunks/goalsThunks";
+import { fetchAnalyticsSummary } from "@/store/thunks/analyticsThunks";
+import { AnalyticsSummary } from "@/types/analytics";
 
-// Datos dummy para demostración
-const DUMMY_DATA = {
-    transactions: [
-        {
-            id: 1,
-            type: "ingreso",
-            amount: 25000,
-            category: "Salario",
-            date: "2023-11-01",
-            description: "Nómina mensual",
-        },
-        {
-            id: 2,
-            type: "gasto",
-            amount: 7500,
-            category: "Vivienda",
-            date: "2023-11-02",
-            description: "Renta",
-        },
-        {
-            id: 3,
-            type: "gasto",
-            amount: 3000,
-            category: "Alimentación",
-            date: "2023-11-05",
-            description: "Compra semanal",
-        },
-        {
-            id: 4,
-            type: "gasto",
-            amount: 1200,
-            category: "Transporte",
-            date: "2023-11-08",
-            description: "Gasolina",
-        },
-        {
-            id: 5,
-            type: "gasto",
-            amount: 2500,
-            category: "Servicios",
-            date: "2023-11-10",
-            description: "Luz y agua",
-        },
-        {
-            id: 6,
-            type: "gasto",
-            amount: 1800,
-            category: "Entretenimiento",
-            date: "2023-11-15",
-            description: "Cine y cena",
-        },
-        {
-            id: 7,
-            type: "ingreso",
-            amount: 3000,
-            category: "Freelance",
-            date: "2023-11-20",
-            description: "Proyecto extra",
-        },
-        {
-            id: 8,
-            type: "gasto",
-            amount: 1500,
-            category: "Salud",
-            date: "2023-11-25",
-            description: "Medicamentos",
-        },
-    ],
-    goals: [
-        {
-            id: 1,
-            title: "Fondo de emergencia",
-            targetAmount: 50000,
-            currentAmount: 15000,
-            category: "ahorro",
-            targetDate: "2024-06-30",
-        },
-        {
-            id: 2,
-            title: "Vacaciones",
-            targetAmount: 20000,
-            currentAmount: 5000,
-            category: "ahorro",
-            targetDate: "2024-07-15",
-        },
-        {
-            id: 3,
-            title: "Nuevo laptop",
-            targetAmount: 25000,
-            currentAmount: 8000,
-            category: "compra",
-            targetDate: "2024-03-01",
-        },
-    ],
-    alerts: [
-        {
-            id: 1,
-            type: "warning",
-            message:
-                "Has gastado 80% de tu presupuesto de Entretenimiento este mes",
-            date: "2023-11-26",
-        },
-        {
-            id: 2,
-            type: "info",
-            message:
-                'Tu meta "Nuevo laptop" va por buen camino, has ahorrado 32% del objetivo. ¡Sigue así!',
-            date: "2023-11-25",
-        },
-        {
-            id: 3,
-            type: "success",
-            message: "Tu balance este mes es positivo, ¡felicidades!",
-            date: "2023-11-24",
-        },
-    ],
-};
+const COLORS = [
+    "#4f46e5",
+    "#8b5cf6",
+    "#ec4899",
+    "#ef4444",
+    "#f97316",
+    "#eab308",
+    "#22c55e",
+    "#06b6d4",
+    "#3b82f6",
+];
 
-// Preparar datos para gráficos
-const prepareChartData = () => {
-    // Gastos por categoría para gráfico de pie
-    const expensesByCategory = DUMMY_DATA.transactions
-        .filter((tx) => tx.type === "gasto")
-        .reduce((acc, tx) => {
-            const existingCategory = acc.find(
-                (item) => item.name === tx.category
-            );
-            if (existingCategory) {
-                existingCategory.value += tx.amount;
-            } else {
-                acc.push({ name: tx.category, value: tx.amount });
-            }
+export default function DashboardPage() {
+    const dispatch = useAppDispatch();
+    const { data: session } = useSession({ required: false });
+    const userId = session?.user?.id!;
+
+    // Redux state slices
+    const transactions = useAppSelector((s) => s.transactions.items);
+    const txLoading = useAppSelector((s) => s.transactions.isLoading);
+    const txError = useAppSelector((s) => s.transactions.error);
+
+    const goals = useAppSelector((s) => s.goals.items);
+    const goalsLoading = useAppSelector((s) => s.goals.isLoading);
+
+    const analytics = useAppSelector(
+        (s) => s.analytics.summary
+    ) as AnalyticsSummary;
+    const analyticsLoading = useAppSelector((s) => s.analytics.loading);
+
+    // Fetch data on mount
+    useEffect(() => {
+        if (!userId) return;
+        dispatch(fetchTransactions());
+        dispatch(fetchGoals());
+        dispatch(fetchAnalyticsSummary({ userId }));
+    }, [dispatch, userId]);
+
+    // Prepare chart data
+    const pieData = transactions
+        .filter((t) => t.type === "gasto")
+        .reduce<{ name: string; value: number }[]>((acc, t) => {
+            const found = acc.find((c) => c.name === t.category);
+            if (found) found.value += t.amount;
+            else acc.push({ name: t.category, value: t.amount });
             return acc;
-        }, [] as { name: string; value: number }[]);
-
-    // Datos para gráfico de línea (ingresos vs gastos por día)
-    const transactionsByDate = DUMMY_DATA.transactions.reduce((acc, tx) => {
-        const date = tx.date.substring(0, 10);
-        if (!acc[date]) {
-            acc[date] = { date, ingresos: 0, gastos: 0 };
-        }
-        if (tx.type === "ingreso") {
-            acc[date].ingresos += tx.amount;
-        } else {
-            acc[date].gastos += tx.amount;
-        }
+        }, []);
+    console.log("pieData", pieData);
+    const maxValue = Math.max(...pieData.map((d) => d.value), 0) || 1;
+    const grouped = transactions.reduce<
+        Record<string, { date: string; ingresos: number; gastos: number }>
+    >((acc, t) => {
+        const d = t.date.slice(0, 10);
+        if (!acc[d]) acc[d] = { date: d, ingresos: 0, gastos: 0 };
+        acc[d][t.type === "ingreso" ? "ingresos" : "gastos"] += t.amount;
         return acc;
-    }, {} as Record<string, { date: string; ingresos: number; gastos: number }>);
-
-    const lineChartData = Object.values(transactionsByDate).sort((a, b) =>
+    }, {});
+    const lineData = Object.values(grouped).sort((a, b) =>
         a.date.localeCompare(b.date)
     );
 
-    // Datos para gráfico de barras (progreso de metas)
-    const goalsProgress = DUMMY_DATA.goals.map((goal) => ({
-        name: goal.title,
-        actual: goal.currentAmount,
-        objetivo: goal.targetAmount,
-        progreso: Math.round((goal.currentAmount / goal.targetAmount) * 100),
+    const barData = goals.map((g) => ({
+        name: g.title,
+        actual: g.currentAmount,
+        objetivo: g.targetAmount,
+        progreso: Math.round((g.currentAmount / g.targetAmount) * 100),
     }));
 
-    return {
-        expensesByCategory,
-        lineChartData,
-        goalsProgress,
-    };
-};
-
-export default function Dashboard() {
-    // Usar sesión o crear una sesión simulada para desarrollo
-    const { data: session } = useSession({ required: false });
-    const userName = session?.user?.name || "Usuario";
-
-    const [chartData, setChartData] = useState(() => prepareChartData());
-
-    // Calcular resumen financiero
-    const financialSummary = {
-        totalIncome: DUMMY_DATA.transactions
-            .filter((tx) => tx.type === "ingreso")
-            .reduce((sum, tx) => sum + tx.amount, 0),
-        totalExpenses: DUMMY_DATA.transactions
-            .filter((tx) => tx.type === "gasto")
-            .reduce((sum, tx) => sum + tx.amount, 0),
-        totalSavings: DUMMY_DATA.goals.reduce(
-            (sum, goal) => sum + goal.currentAmount,
-            0
-        ),
-        totalGoals: DUMMY_DATA.goals.reduce(
-            (sum, goal) => sum + goal.targetAmount,
-            0
-        ),
-    };
-
-    // Balance disponible
-    const availableBalance =
-        financialSummary.totalIncome - financialSummary.totalExpenses;
-
-    // Colores para los gráficos
-    const COLORS = [
-        "#4f46e5",
-        "#8b5cf6",
-        "#ec4899",
-        "#ef4444",
-        "#f97316",
-        "#eab308",
-        "#22c55e",
-        "#06b6d4",
-        "#3b82f6",
-    ];
+    if (!session) {
+        return (
+            <div className="p-8 text-center">
+                <p>Inicia sesión para ver tu Dashboard.</p>
+            </div>
+        );
+    }
 
     return (
-        <div className="space-y-6">
-            {/* Encabezado */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div className="space-y-6 p-6">
+            {/* Header */}
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight">
-                        Dashboard
-                    </h1>
+                    <h1 className="text-3xl font-bold">Dashboard</h1>
                     <p className="text-muted-foreground">
-                        Bienvenido, {userName}. Aquí está tu resumen financiero.
+                        Bienvenido, {session.user.name}.
                     </p>
                 </div>
                 <div className="flex gap-2">
                     <Link href="/dashboard/new-transaction">
-                        <Button className="gap-1" variant="ghost">
+                        <Button variant="ghost" className="gap-1">
                             <Plus size={16} /> Nueva transacción
                         </Button>
                     </Link>
                     <Link href="/dashboard/new-goal">
-                        <Button className="gap-1" variant="ghost">
+                        <Button variant="ghost" className="gap-1">
                             <Plus size={16} /> Nueva meta
                         </Button>
                     </Link>
                 </div>
             </div>
 
-            {/* Tarjetas de resumen */}
+            {/* KPI Cards */}
             <div className="grid gap-4 md:grid-cols-4">
                 <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">
+                    <CardHeader className="flex justify-between pb-2">
+                        <CardTitle className="text-sm">
                             Balance disponible
                         </CardTitle>
                         <Wallet className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">
-                            {formatCurrency(availableBalance)}
-                        </div>
+                        {analyticsLoading ? (
+                            <Skeleton className="h-8 w-24 rounded" />
+                        ) : (
+                            <div className="text-2xl font-bold">
+                                {formatCurrency(analytics.availableBalance)}
+                            </div>
+                        )}
                         <p className="text-xs text-muted-foreground">
-                            {availableBalance >= 0
-                                ? "+" +
-                                  formatCurrency(availableBalance - 10000) +
-                                  " vs. mes pasado"
-                                : formatCurrency(availableBalance - 10000) +
-                                  " vs. mes pasado"}
+                            {analyticsLoading ? (
+                                <Skeleton className="h-4 w-32 mt-1 rounded" />
+                            ) : (
+                                analytics.balanceDiffLabel
+                            )}
                         </p>
                     </CardContent>
                 </Card>
+
                 <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">
+                    <CardHeader className="flex justify-between pb-2">
+                        <CardTitle className="text-sm">
                             Ingresos del mes
                         </CardTitle>
                         <TrendingUp className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">
-                            {formatCurrency(financialSummary.totalIncome)}
-                        </div>
+                        {analyticsLoading ? (
+                            <Skeleton className="h-8 w-24 rounded" />
+                        ) : (
+                            <div className="text-2xl font-bold">
+                                {formatCurrency(analytics.totalIncome)}
+                            </div>
+                        )}
                         <p className="text-xs text-muted-foreground">
-                            +{formatCurrency(2000)} vs. mes pasado
+                            {analyticsLoading ? (
+                                <Skeleton className="h-4 w-32 mt-1 rounded" />
+                            ) : (
+                                analytics.incomeDiffLabel
+                            )}
                         </p>
                     </CardContent>
                 </Card>
+
                 <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">
+                    <CardHeader className="flex justify-between pb-2">
+                        <CardTitle className="text-sm">
                             Gastos del mes
                         </CardTitle>
                         <TrendingUp className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">
-                            {formatCurrency(financialSummary.totalExpenses)}
-                        </div>
+                        {analyticsLoading ? (
+                            <Skeleton className="h-8 w-24 rounded" />
+                        ) : (
+                            <div className="text-2xl font-bold">
+                                {formatCurrency(analytics.totalExpenses)}
+                            </div>
+                        )}
                         <p className="text-xs text-muted-foreground">
-                            -{formatCurrency(1500)} vs. mes pasado
+                            {analyticsLoading ? (
+                                <Skeleton className="h-4 w-32 mt-1 rounded" />
+                            ) : (
+                                analytics.expenseDiffLabel
+                            )}
                         </p>
                     </CardContent>
                 </Card>
+
                 <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">
+                    <CardHeader className="flex justify-between pb-2">
+                        <CardTitle className="text-sm">
                             Ahorros actuales
                         </CardTitle>
                         <Target className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">
-                            {formatCurrency(financialSummary.totalSavings)}
-                        </div>
+                        {analyticsLoading ? (
+                            <Skeleton className="h-8 w-24 rounded" />
+                        ) : (
+                            <div className="text-2xl font-bold">
+                                {formatCurrency(analytics.totalSavings)}
+                            </div>
+                        )}
                         <p className="text-xs text-muted-foreground">
-                            {Math.round(
-                                (financialSummary.totalSavings /
-                                    financialSummary.totalGoals) *
-                                    100
+                            {analyticsLoading ? (
+                                <Skeleton className="h-4 w-32 mt-1 rounded" />
+                            ) : (
+                                `${Math.round(
+                                    analytics.savingsRate * 100
+                                )}% de la meta`
                             )}
-                            % de la meta
                         </p>
                     </CardContent>
                 </Card>
             </div>
 
-            {/* Gráficos */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-                {/* Gráfico de gastos por categoría */}
-                <Card className="col-span-full md:col-span-1 lg:col-span-2">
+            {/* Charts */}
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-12">
+                {/* Pie */}
+                <Card className="col-span-full md:col-span-1 lg:col-span-6">
                     <CardHeader>
                         <CardTitle>Gastos por categoría</CardTitle>
-                        <CardDescription>
-                            Distribución de tus gastos este mes
-                        </CardDescription>
+                        <CardDescription>Distribución mensual</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <div className="h-[300px] w-full">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <PieChart>
-                                    <Pie
-                                        data={chartData.expensesByCategory}
-                                        cx="50%"
-                                        cy="50%"
-                                        labelLine={false}
-                                        outerRadius={80}
-                                        fill="#8884d8"
-                                        dataKey="value"
-                                        nameKey="name"
-                                        label={({ name, percent }) =>
-                                            `${name}: ${(percent * 100).toFixed(
-                                                0
-                                            )}%`
-                                        }
+                        {txLoading ? (
+                            <Skeleton className="h-[300px] w-full rounded" />
+                        ) : (
+                            <div className="h-[300px] w-full">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <AreaChart
+                                        data={pieData}
+                                        margin={{
+                                            top: 20,
+                                            right: 20,
+                                            left: 0,
+                                            bottom: 20,
+                                        }}
                                     >
-                                        {chartData.expensesByCategory.map(
-                                            (entry, index) => (
-                                                <Cell
-                                                    key={`cell-${index}`}
-                                                    fill={
-                                                        COLORS[
-                                                            index %
-                                                                COLORS.length
-                                                        ]
-                                                    }
-                                                />
-                                            )
-                                        )}
-                                    </Pie>
-                                    <Tooltip
-                                        formatter={(value) =>
-                                            formatCurrency(value as number)
-                                        }
-                                    />
-                                </PieChart>
-                            </ResponsiveContainer>
-                        </div>
+                                        <CartesianGrid strokeDasharray="3 3" />
+                                        <XAxis dataKey="name" />
+                                        <YAxis
+                                            tickFormatter={(v) =>
+                                                formatCurrency(v as number)
+                                            }
+                                        />
+                                        <Tooltip
+                                            formatter={(v) =>
+                                                formatCurrency(v as number)
+                                            }
+                                        />
+                                        <Area
+                                            type="monotone"
+                                            dataKey="value"
+                                            stroke={COLORS[0]}
+                                            fill={COLORS[0]}
+                                            fillOpacity={0.3}
+                                        />
+                                    </AreaChart>
+                                </ResponsiveContainer>
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
 
-                {/* Gráfico de ingresos vs gastos por día */}
-                <Card className="col-span-full md:col-span-1 lg:col-span-5">
+                {/* Line */}
+                <Card className="col-span-full md:col-span-1 lg:col-span-6">
                     <CardHeader>
                         <CardTitle>Ingresos vs Gastos</CardTitle>
-                        <CardDescription>
-                            Comparativa diaria del mes actual
-                        </CardDescription>
+                        <CardDescription>Diario</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <div className="h-[300px] w-full">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <LineChart data={chartData.lineChartData}>
-                                    <CartesianGrid strokeDasharray="3 3" />
-                                    <XAxis dataKey="date" />
-                                    <YAxis />
-                                    <Tooltip
-                                        formatter={(value) =>
-                                            formatCurrency(value as number)
-                                        }
-                                    />
-                                    <Legend />
-                                    <Line
-                                        type="monotone"
-                                        dataKey="ingresos"
-                                        stroke="#4f46e5"
-                                        activeDot={{ r: 8 }}
-                                        name="Ingresos"
-                                    />
-                                    <Line
-                                        type="monotone"
-                                        dataKey="gastos"
-                                        stroke="#ef4444"
-                                        name="Gastos"
-                                    />
-                                </LineChart>
-                            </ResponsiveContainer>
-                        </div>
+                        {txLoading ? (
+                            <Skeleton className="h-[300px] w-full rounded" />
+                        ) : (
+                            <div className="h-[300px]">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <LineChart data={lineData}>
+                                        <CartesianGrid strokeDasharray="3 3" />
+                                        <XAxis dataKey="date" />
+                                        <YAxis />
+                                        <Tooltip
+                                            formatter={(v) =>
+                                                formatCurrency(v as number)
+                                            }
+                                        />
+                                        <Legend />
+                                        <Line
+                                            type="monotone"
+                                            dataKey="ingresos"
+                                            stroke="#4f46e5"
+                                        />
+                                        <Line
+                                            type="monotone"
+                                            dataKey="gastos"
+                                            stroke="#ef4444"
+                                        />
+                                    </LineChart>
+                                </ResponsiveContainer>
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
 
-                {/* Gráfico de progreso de metas */}
-                <Card className="col-span-full">
+                {/* Bar */}
+                <Card className="col-span-12">
                     <CardHeader>
                         <CardTitle>Progreso de metas</CardTitle>
-                        <CardDescription>
-                            Avance actual hacia tus objetivos financieros
-                        </CardDescription>
+                        <CardDescription>Avance % vs objetivo</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <div className="h-[300px] w-full">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={chartData.goalsProgress}>
-                                    <CartesianGrid strokeDasharray="3 3" />
-                                    <XAxis dataKey="name" />
-                                    <YAxis
-                                        yAxisId="left"
-                                        orientation="left"
-                                        stroke="#4f46e5"
-                                    />
-                                    <YAxis
-                                        yAxisId="right"
-                                        orientation="right"
-                                        stroke="#22c55e"
-                                    />
-                                    <Tooltip
-                                        formatter={(value, name) => {
-                                            if (name === "progreso")
-                                                return `${value}%`;
-                                            return formatCurrency(
-                                                value as number
-                                            );
-                                        }}
-                                    />
-                                    <Legend />
-                                    <Bar
-                                        yAxisId="left"
-                                        dataKey="actual"
-                                        name="Ahorrado"
-                                        fill="#4f46e5"
-                                    />
-                                    <Bar
-                                        yAxisId="left"
-                                        dataKey="objetivo"
-                                        name="Objetivo"
-                                        fill="#8b5cf6"
-                                    />
-                                    <Line
-                                        yAxisId="right"
-                                        type="monotone"
-                                        dataKey="progreso"
-                                        name="Progreso %"
-                                        stroke="#22c55e"
-                                    />
-                                </BarChart>
-                            </ResponsiveContainer>
-                        </div>
+                        {goalsLoading ? (
+                            <Skeleton className="h-[300px] w-full rounded" />
+                        ) : (
+                            <div className="h-[300px]">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={barData}>
+                                        <CartesianGrid strokeDasharray="3 3" />
+                                        <XAxis dataKey="name" />
+                                        <YAxis yAxisId="left" />
+                                        <YAxis
+                                            yAxisId="right"
+                                            orientation="right"
+                                        />
+                                        <Tooltip
+                                            formatter={(v, name) =>
+                                                name === "progreso"
+                                                    ? `${v}%`
+                                                    : formatCurrency(
+                                                          v as number
+                                                      )
+                                            }
+                                        />
+                                        <Legend />
+                                        <Bar
+                                            yAxisId="left"
+                                            dataKey="actual"
+                                            fill="#4f46e5"
+                                        />
+                                        <Bar
+                                            yAxisId="left"
+                                            dataKey="objetivo"
+                                            fill="#8b5cf6"
+                                        />
+                                        <Line
+                                            yAxisId="right"
+                                            type="monotone"
+                                            dataKey="progreso"
+                                            stroke="#22c55e"
+                                        />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
             </div>
 
-            {/* Secciones inferiores */}
+            {/* Últimas Transacciones */}
             <div className="grid gap-4 md:grid-cols-2">
-                {/* Últimas transacciones */}
                 <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                    <CardHeader className="flex justify-between items-center">
                         <div>
                             <CardTitle>Últimas transacciones</CardTitle>
                             <CardDescription>
-                                Movimientos recientes en tu cuenta
+                                Movimientos recientes
                             </CardDescription>
                         </div>
                         <Link href="/dashboard/transactions">
@@ -523,43 +408,50 @@ export default function Dashboard() {
                         </Link>
                     </CardHeader>
                     <CardContent>
+                        {txLoading && (
+                            <Skeleton className="h-40 w-full rounded" />
+                        )}
+                        {txError && <p className="text-red-600">{txError}</p>}
+                        {!txLoading &&
+                            !txError &&
+                            transactions.length === 0 && (
+                                <p className="text-sm text-muted-foreground">
+                                    No hay transacciones.
+                                </p>
+                            )}
                         <div className="space-y-4">
-                            {DUMMY_DATA.transactions
-                                .slice(0, 5)
-                                .map((transaction) => (
+                            {!txLoading &&
+                                transactions.slice(0, 5).map((tx) => (
                                     <div
-                                        key={transaction.id}
+                                        key={tx.id}
                                         className="flex items-center justify-between"
                                     >
                                         <div className="flex items-center gap-3">
                                             <div
                                                 className={`w-2 h-10 rounded-full ${
-                                                    transaction.type ===
-                                                    "ingreso"
+                                                    tx.type === "ingreso"
                                                         ? "bg-green-500"
                                                         : "bg-red-500"
                                                 }`}
-                                            ></div>
+                                            />
                                             <div>
                                                 <p className="font-medium">
-                                                    {transaction.category}
+                                                    {tx.category}
                                                 </p>
                                                 <p className="text-xs text-muted-foreground">
-                                                    {transaction.date}
+                                                    {tx.date.slice(0, 10)}
                                                 </p>
                                             </div>
                                         </div>
                                         <div
                                             className={`font-bold ${
-                                                transaction.type === "ingreso"
+                                                tx.type === "ingreso"
                                                     ? "text-green-500"
                                                     : "text-red-500"
                                             }`}
                                         >
-                                            {transaction.type === "ingreso"
-                                                ? "+"
-                                                : "-"}
-                                            {formatCurrency(transaction.amount)}
+                                            {tx.type === "ingreso" ? "+" : "-"}
+                                            {formatCurrency(tx.amount)}
                                         </div>
                                     </div>
                                 ))}
@@ -569,7 +461,7 @@ export default function Dashboard() {
 
                 {/* Alertas */}
                 <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                    <CardHeader className="flex justify-between items-center">
                         <div>
                             <CardTitle>Alertas y notificaciones</CardTitle>
                             <CardDescription>
@@ -583,39 +475,13 @@ export default function Dashboard() {
                         </Link>
                     </CardHeader>
                     <CardContent>
-                        <div className="space-y-4">
-                            {DUMMY_DATA.alerts.map((alert) => (
-                                <div
-                                    key={alert.id}
-                                    className="flex items-start gap-3"
-                                >
-                                    <div
-                                        className={`p-2 rounded-full ${
-                                            alert.type === "warning"
-                                                ? "bg-yellow-100 text-yellow-600"
-                                                : alert.type === "info"
-                                                ? "bg-blue-100 text-blue-600"
-                                                : "bg-green-100 text-green-600"
-                                        }`}
-                                    >
-                                        <Bell size={16} />
-                                    </div>
-                                    <div>
-                                        <p className="font-medium">
-                                            {alert.message}
-                                        </p>
-                                        <p className="text-xs text-muted-foreground">
-                                            {alert.date}
-                                        </p>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
+                        {/* Replace following with real alerts slice & loading state */}
+                        <Skeleton className="h-40 w-full rounded" />
                     </CardContent>
                 </Card>
             </div>
 
-            {/* Sugerencias de la IA */}
+            {/* Recomendaciones IA */}
             <Card>
                 <CardHeader>
                     <CardTitle>Recomendaciones personalizadas</CardTitle>
@@ -625,43 +491,8 @@ export default function Dashboard() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <div className="space-y-4">
-                        <div className="rounded-lg border p-4 bg-primary/5">
-                            <h3 className="font-semibold mb-2">
-                                Oportunidad de ahorro detectada
-                            </h3>
-                            <p className="text-sm text-muted-foreground mb-4">
-                                Tus gastos en la categoría de Entretenimiento
-                                han aumentado un 15% en los últimos dos meses.
-                                Considerando tu meta de ahorro, podrías reducir
-                                este gasto para alcanzar tu objetivo más rápido.
-                            </p>
-                            <div className="flex gap-2">
-                                <Button variant="outline" size="sm">
-                                    Ver detalles
-                                </Button>
-                                <Button size="sm">Establecer límite</Button>
-                            </div>
-                        </div>
-
-                        <div className="rounded-lg border p-4 bg-primary/5">
-                            <h3 className="font-semibold mb-2">
-                                Planifica para próximos gastos
-                            </h3>
-                            <p className="text-sm text-muted-foreground mb-4">
-                                Basado en tu historial, es probable que tengas
-                                gastos de servicios públicos en los próximos 5
-                                días. Asegúrate de tener suficiente saldo
-                                disponible.
-                            </p>
-                            <div className="flex gap-2">
-                                <Button variant="outline" size="sm">
-                                    Ver detalles
-                                </Button>
-                                <Button size="sm">Crear recordatorio</Button>
-                            </div>
-                        </div>
-                    </div>
+                    {/* Replace with real AI slice & loading state */}
+                    <Skeleton className="h-60 w-full rounded" />
                 </CardContent>
                 <CardFooter>
                     <Button variant="outline" className="w-full">
