@@ -1,10 +1,12 @@
+// src/app/dashboard/goals/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { fetchGoals } from "@/store/thunks/goalsThunks";
+import { fetchGoals, deleteGoal } from "@/store/thunks/goalsThunks";
 import {
     Card,
     CardHeader,
@@ -13,9 +15,19 @@ import {
     CardContent,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Clock, Target as TargetIcon } from "lucide-react";
+import { Plus, Clock, X } from "lucide-react";
 import { formatCurrency, calculateProgress } from "@/lib/utils";
 import { ReduxProvider } from "@/store";
+
+import {
+    Dialog,
+    DialogTrigger,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+    DialogFooter,
+} from "@/components/ui/dialog";
 
 export default function GoalsPage() {
     return (
@@ -26,10 +38,13 @@ export default function GoalsPage() {
 }
 
 function GoalsList() {
+    const router = useRouter();
     const dispatch = useAppDispatch();
     const { items: goals, isLoading, error } = useAppSelector((s) => s.goals);
     const [filterActive, setFilterActive] = useState<boolean | null>(true);
     const [filterCategory, setFilterCategory] = useState<string | null>(null);
+    const [toDeleteId, setToDeleteId] = useState<string | null>(null);
+    const [dialogOpen, setDialogOpen] = useState(false);
 
     useEffect(() => {
         dispatch(fetchGoals());
@@ -49,10 +64,21 @@ function GoalsList() {
         { value: "otro", label: "Otro" },
     ];
 
+    function openDeleteDialog(id: string) {
+        setToDeleteId(id);
+        setDialogOpen(true);
+    }
+
+    function confirmDelete() {
+        if (toDeleteId) dispatch(deleteGoal(toDeleteId));
+        setDialogOpen(false);
+        setToDeleteId(null);
+    }
+
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
                 <div>
                     <h1 className="text-3xl font-bold">Metas financieras</h1>
                     <p className="text-muted-foreground">
@@ -60,34 +86,36 @@ function GoalsList() {
                     </p>
                 </div>
                 <Link href="/dashboard/new-goal">
-                    <Button className="gap-1">
+                    <Button className="gap-1 w-full sm:w-auto">
                         <Plus size={16} /> Nueva meta
                     </Button>
                 </Link>
             </div>
 
             {/* Filters */}
-            <div className="flex flex-wrap gap-2 mb-4">
-                <Button
-                    variant={filterActive === null ? "default" : "outline"}
-                    onClick={() => setFilterActive(null)}
-                >
-                    Todas
-                </Button>
-                <Button
-                    variant={filterActive === true ? "default" : "outline"}
-                    onClick={() => setFilterActive(true)}
-                >
-                    Activas
-                </Button>
-                <Button
-                    variant={filterActive === false ? "default" : "outline"}
-                    onClick={() => setFilterActive(false)}
-                >
-                    Inactivas
-                </Button>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-4">
+                <div className="grid grid-cols-3 sm:flex sm:flex-row gap-2 w-full sm:w-auto">
+                    {["Todas", "Activas", "Inactivas"].map((label, i) => {
+                        const value: boolean | null =
+                            i === 0 ? null : i === 1 ? true : false;
+                        return (
+                            <Button
+                                key={label}
+                                variant={
+                                    filterActive === value
+                                        ? "default"
+                                        : "outline"
+                                }
+                                onClick={() => setFilterActive(value)}
+                                className="w-full sm:w-auto text-xs sm:text-sm"
+                            >
+                                {label}
+                            </Button>
+                        );
+                    })}
+                </div>
                 <select
-                    className="ml-auto px-2 py-1 border rounded"
+                    className="w-full sm:w-auto sm:ml-auto px-3 py-2 border rounded text-sm"
                     value={filterCategory ?? ""}
                     onChange={(e) => setFilterCategory(e.target.value || null)}
                 >
@@ -140,12 +168,16 @@ function GoalsList() {
                                       )
                                   );
                                   return (
-                                      <Link
+                                      <div
                                           key={g.id}
-                                          href={`/dashboard/goals/${g.id}`}
-                                          className="block h-72"
+                                          className="block h-72 relative group cursor-pointer"
+                                          onClick={() =>
+                                              router.push(
+                                                  `/dashboard/goals/${g.id}`
+                                              )
+                                          }
                                       >
-                                          <Card className="h-full flex flex-col relative hover:shadow-lg transition-shadow">
+                                          <Card className="h-full flex flex-col hover:shadow-lg transition-shadow">
                                               <CardHeader>
                                                   <div className="flex justify-between items-center">
                                                       <div>
@@ -242,22 +274,74 @@ function GoalsList() {
                                                   )}
                                               </CardContent>
 
-                                              {/* Icon button para agregar progreso */}
-                                              {!g.isCompleted && (
-                                                  <Link
-                                                      href={`/dashboard/goals/${g.id}/add-progress`}
+                                              {/* Delete button / diálogo */}
+                                              <Dialog
+                                                  open={
+                                                      dialogOpen &&
+                                                      toDeleteId === g.id
+                                                  }
+                                                  onOpenChange={setDialogOpen}
+                                              >
+                                                  <DialogTrigger asChild>
+                                                      <button
+                                                          onClick={(e) => {
+                                                              e.stopPropagation();
+                                                              openDeleteDialog(
+                                                                  g.id
+                                                              );
+                                                          }}
+                                                          className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-full hover:bg-muted"
+                                                          title="Eliminar meta"
+                                                      >
+                                                          <X
+                                                              size={16}
+                                                              className="text-muted-foreground"
+                                                          />
+                                                      </button>
+                                                  </DialogTrigger>
+                                                  <DialogContent
                                                       onClick={(e) =>
                                                           e.stopPropagation()
                                                       }
-                                                      className="absolute bottom-4 right-4 inline-flex items-center justify-center w-8 h-8 bg-primary text-white rounded-full shadow"
-                                                      title="Agregar progreso"
-                                                      aria-label="Agregar progreso a esta meta"
                                                   >
-                                                      <Plus size={16} />
-                                                  </Link>
-                                              )}
+                                                      <DialogHeader>
+                                                          <DialogTitle>
+                                                              Confirmar
+                                                              eliminación
+                                                          </DialogTitle>
+                                                          <DialogDescription>
+                                                              ¿Estás seguro de
+                                                              que deseas
+                                                              eliminar la meta “
+                                                              {g.title}”? Esta
+                                                              acción no se puede
+                                                              deshacer.
+                                                          </DialogDescription>
+                                                      </DialogHeader>
+                                                      <DialogFooter className="space-x-2">
+                                                          <Button
+                                                              variant="outline"
+                                                              onClick={() =>
+                                                                  setDialogOpen(
+                                                                      false
+                                                                  )
+                                                              }
+                                                          >
+                                                              Cancelar
+                                                          </Button>
+                                                          <Button
+                                                              variant="destructive"
+                                                              onClick={
+                                                                  confirmDelete
+                                                              }
+                                                          >
+                                                              Eliminar
+                                                          </Button>
+                                                      </DialogFooter>
+                                                  </DialogContent>
+                                              </Dialog>
                                           </Card>
-                                      </Link>
+                                      </div>
                                   );
                               })) as React.ReactNode
                     }

@@ -67,7 +67,7 @@ function TransactionsList() {
             <div className="flex items-start gap-3">
                 <div
                     className={`w-2 h-10 rounded-full ${
-                        tx.type === "ingreso" ? "bg-green-500" : "bg-red-500"
+                        tx.type === "ingreso" ? "bg-green-700" : "bg-red-700"
                     }`}
                 />
                 <div>
@@ -84,8 +84,8 @@ function TransactionsList() {
                 <p
                     className={`font-bold ${
                         tx.type === "ingreso"
-                            ? "text-green-500"
-                            : "text-red-500"
+                            ? "text-green-700"
+                            : "text-red-700"
                     }`}
                 >
                     {tx.type === "ingreso" ? "+" : "-"}
@@ -151,14 +151,14 @@ function TransactionsList() {
                             filterType === "ingreso" ? "default" : "outline"
                         }
                         onClick={() => setFilterType("ingreso")}
-                        className="text-green-500"
+                        className="text-green-700"
                     >
                         Ingresos
                     </Button>
                     <Button
                         variant={filterType === "gasto" ? "default" : "outline"}
                         onClick={() => setFilterType("gasto")}
-                        className="text-red-500"
+                        className="text-red-700"
                     >
                         Gastos
                     </Button>

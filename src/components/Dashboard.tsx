@@ -45,15 +45,15 @@ import { fetchAnalyticsSummary } from "@/store/thunks/analyticsThunks";
 import { AnalyticsSummary } from "@/types/analytics";
 
 const COLORS = [
-    "#4f46e5",
-    "#8b5cf6",
-    "#ec4899",
-    "#ef4444",
-    "#f97316",
-    "#eab308",
-    "#22c55e",
-    "#06b6d4",
-    "#3b82f6",
+    "#111111", // Muy oscuro
+    "#333333",
+    "#555555",
+    "#777777",
+    "#999999",
+    "#BBBBBB",
+    "#DDDDDD",
+    "#EEEEEE",
+    "#F5F5F5", // Casi blanco
 ];
 
 export default function DashboardPage() {
@@ -252,7 +252,7 @@ export default function DashboardPage() {
             {/* Charts */}
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-12">
                 {/* Pie */}
-                <Card className="col-span-full md:col-span-1 lg:col-span-6">
+                <Card className="col-span-12 md:col-span-12 lg:col-span-6">
                     <CardHeader>
                         <CardTitle>Gastos por categoría</CardTitle>
                         <CardDescription>Distribución mensual</CardDescription>
@@ -299,7 +299,7 @@ export default function DashboardPage() {
                 </Card>
 
                 {/* Line */}
-                <Card className="col-span-full md:col-span-1 lg:col-span-6">
+                <Card className="col-span-12 md:col-span-12 lg:col-span-6">
                     <CardHeader>
                         <CardTitle>Ingresos vs Gastos</CardTitle>
                         <CardDescription>Diario</CardDescription>
@@ -323,12 +323,22 @@ export default function DashboardPage() {
                                         <Line
                                             type="monotone"
                                             dataKey="ingresos"
-                                            stroke="#4f46e5"
+                                            stroke={COLORS[1]}
+                                            dot={{ fill: COLORS[1] }}
+                                            activeDot={{
+                                                r: 8,
+                                                fill: COLORS[1],
+                                            }}
                                         />
                                         <Line
                                             type="monotone"
                                             dataKey="gastos"
-                                            stroke="#ef4444"
+                                            stroke={COLORS[3]}
+                                            dot={{ fill: COLORS[3] }}
+                                            activeDot={{
+                                                r: 8,
+                                                fill: COLORS[3],
+                                            }}
                                         />
                                     </LineChart>
                                 </ResponsiveContainer>
@@ -370,18 +380,18 @@ export default function DashboardPage() {
                                         <Bar
                                             yAxisId="left"
                                             dataKey="actual"
-                                            fill="#4f46e5"
+                                            fill={COLORS[1]} // "#333333"
                                         />
                                         <Bar
                                             yAxisId="left"
                                             dataKey="objetivo"
-                                            fill="#8b5cf6"
+                                            fill={COLORS[3]} // "#777777"
                                         />
                                         <Line
                                             yAxisId="right"
                                             type="monotone"
                                             dataKey="progreso"
-                                            stroke="#22c55e"
+                                            stroke={COLORS[2]} // "#555555"
                                         />
                                     </BarChart>
                                 </ResponsiveContainer>
@@ -419,42 +429,48 @@ export default function DashboardPage() {
                                     No hay transacciones.
                                 </p>
                             )}
+
                         <div className="space-y-4">
                             {!txLoading &&
-                                transactions.slice(0, 5).map((tx) => (
-                                    <div
-                                        key={tx.id}
-                                        className="flex items-center justify-between"
-                                    >
-                                        <div className="flex items-center gap-3">
+                                transactions.slice(0, 5).map((tx) => {
+                                    const isIngreso = tx.type === "ingreso";
+                                    const barBg = isIngreso
+                                        ? "bg-green-700"
+                                        : "bg-red-700";
+                                    const textColor = isIngreso
+                                        ? "text-green-700"
+                                        : "text-red-700";
+
+                                    return (
+                                        <div
+                                            key={tx.id}
+                                            className="flex items-center justify-between"
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <div
+                                                    className={`
+                  w-2 h-10 rounded-full
+                  ${barBg}
+                `}
+                                                />
+                                                <div>
+                                                    <p className="font-medium">
+                                                        {tx.category}
+                                                    </p>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {tx.date.slice(0, 10)}
+                                                    </p>
+                                                </div>
+                                            </div>
                                             <div
-                                                className={`w-2 h-10 rounded-full ${
-                                                    tx.type === "ingreso"
-                                                        ? "bg-green-500"
-                                                        : "bg-red-500"
-                                                }`}
-                                            />
-                                            <div>
-                                                <p className="font-medium">
-                                                    {tx.category}
-                                                </p>
-                                                <p className="text-xs text-muted-foreground">
-                                                    {tx.date.slice(0, 10)}
-                                                </p>
+                                                className={`font-bold ${textColor}`}
+                                            >
+                                                {isIngreso ? "+" : "-"}
+                                                {formatCurrency(tx.amount)}
                                             </div>
                                         </div>
-                                        <div
-                                            className={`font-bold ${
-                                                tx.type === "ingreso"
-                                                    ? "text-green-500"
-                                                    : "text-red-500"
-                                            }`}
-                                        >
-                                            {tx.type === "ingreso" ? "+" : "-"}
-                                            {formatCurrency(tx.amount)}
-                                        </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                         </div>
                     </CardContent>
                 </Card>

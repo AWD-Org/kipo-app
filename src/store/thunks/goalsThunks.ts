@@ -73,8 +73,8 @@ export const deleteGoal = createAsyncThunk<
     try {
         const res = await fetch(`/api/goals/${id}`, { method: "DELETE" });
         if (!res.ok) {
-            const err = await res.json();
-            return rejectWithValue(err.error || "Error eliminando meta");
+            const { error } = await res.json();
+            return rejectWithValue(error || "Error eliminando meta");
         }
         return id;
     } catch (e: any) {

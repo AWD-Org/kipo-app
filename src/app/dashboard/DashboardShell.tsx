@@ -17,6 +17,7 @@ import Image from "next/image";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ReactNode, useEffect } from "react";
 import kipo from "../../assets/icons/avatar/kipo.png";
+import logo from "../../assets/logo.png";
 
 export default function DashboardShell({ children }: { children: ReactNode }) {
     const { data: session, status } = useSession();
@@ -68,9 +69,14 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
         <div className="flex flex-col h-screen bg-background">
             <header className="flex items-center justify-between p-4 bg-card border-b">
                 <Link href="/" className="flex items-center gap-2">
-                    <span className="font-bold text-2xl kipo-gradient">
-                        Kipo
-                    </span>
+                    <Image
+                        src={logo}
+                        alt="Kipo"
+                        width={60}
+                        height={60}
+                        unoptimized
+                        priority
+                    />
                 </Link>
                 <Button
                     variant="ghost"

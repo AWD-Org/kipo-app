@@ -14,6 +14,9 @@ module.exports = {
         "2xl": "1400px",
       },
     },
+    fontFamily: {
+      sans: ['var(--font-sans)', 'sans-serif'],
+    },
     extend: {
       colors: {
         // Nueva paleta monocromática

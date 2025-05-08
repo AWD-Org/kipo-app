@@ -1,70 +1,82 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
- 
+
+/* -------------------------
+   Paleta y variables CSS
+   ------------------------- */
 @layer base {
-  :root {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 0%;
-    
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 0%;
- 
-    --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 0%;
- 
-    --primary: 0 0% 20%;
-    --primary-foreground: 0 0% 100%;
- 
-    --secondary: 0 0% 96%;
-    --secondary-foreground: 0 0% 20%;
- 
-    --muted: 0 0% 96%;
-    --muted-foreground: 0 0% 40%;
- 
-    --accent: 0 0% 90%;
-    --accent-foreground: 0 0% 20%;
- 
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 100%;
+    :root {
+        --background: 0 0% 100%;
+        --foreground: 0 0% 0%;
 
-    --border: 0 0% 90%;
-    --input: 0 0% 90%;
-    --ring: 0 0% 20%;
- 
-    --radius: 0.5rem;
-  }
+        --card: 0 0% 100%;
+        --card-foreground: 0 0% 0%;
+
+        --popover: 0 0% 100%;
+        --popover-foreground: 0 0% 0%;
+
+        --primary: 0 0% 20%;
+        --primary-foreground: 0 0% 100%;
+
+        --secondary: 0 0% 96%;
+        --secondary-foreground: 0 0% 20%;
+
+        --muted: 0 0% 96%;
+        --muted-foreground: 0 0% 40%;
+
+        --accent: 0 0% 90%;
+        --accent-foreground: 0 0% 20%;
+
+        --destructive: 0 84% 60%;
+        --destructive-foreground: 0 0% 100%;
+
+        --border: 0 0% 90%;
+        --input: 0 0% 90%;
+        --ring: 0 0% 20%;
+
+        --radius: 0.5rem;
+    }
 }
- 
+
+/* -------------------------------------------------
+   Reset de borde, fondo y texto para todos los elementos
+   ------------------------------------------------- */
 @layer base {
-  * {
-    @apply border-border;
-  }
-  body {
-    @apply bg-background text-foreground;
-  }
+    * {
+        @apply border-border;
+        font-family: var(--font-sans), sans-serif;
+    }
+    body {
+        @apply bg-background text-foreground font-sans;
+    }
 }
 
-.kipo-gradient {
-  @apply bg-gradient-to-r from-kipo-black via-kipo-gray to-kipo-medium;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  text-fill-color: transparent;
-}
+/* -------------------------
+   Utilities personalizadas
+   ------------------------- */
+@layer components {
+    .kipo-gradient {
+        @apply bg-gradient-to-r from-[hsl(0,0%,20%)] via-[hsl(0,0%,50%)] to-[hsl(0,0%,70%)];
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        text-fill-color: transparent;
+    }
 
-.kipo-card {
-  @apply bg-card rounded-lg border p-4 shadow-sm transition-all hover:shadow-md;
-}
+    .kipo-card {
+        @apply bg-card rounded-lg border p-4 shadow-sm transition-all hover:shadow-md;
+    }
 
-.kipo-form-container {
-  @apply max-w-md mx-auto p-6 bg-card rounded-lg border shadow-sm;
-}
+    .kipo-form-container {
+        @apply max-w-md mx-auto p-6 bg-card rounded-lg border shadow-sm;
+    }
 
-.kipo-dashboard-layout {
-  @apply container mx-auto py-6 space-y-6;
-}
+    .kipo-dashboard-layout {
+        @apply container mx-auto py-6 space-y-6;
+    }
 
-.kipo-section {
-  @apply mb-6;
+    .kipo-section {
+        @apply mb-6;
+    }
 }
