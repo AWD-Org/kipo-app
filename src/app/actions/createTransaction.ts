@@ -1,131 +1,70 @@
-'use server';
+"use server";
 
-import { z } from 'zod';
-import { revalidatePath } from 'next/cache';
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth";
+import connectDB from "@/lib/mongodb";
+import Transaction from "../../../models/Transaction";
 
-// Esquema de validación con Zod
-const transactionSchema = z.object({
-  type: z.enum(['ingreso', 'gasto']),
-  amount: z.number().positive({ message: 'El monto debe ser positivo' }),
-  category: z.string().min(1, { message: 'La categoría es requerida' }),
-  description: z.string().optional(),
-  date: z.string().transform(str => new Date(str)),
-  isRecurrent: z.boolean().optional().default(false),
-  recurrenceFrequency: z.enum(['none', 'daily', 'weekly', 'monthly', 'yearly']).optional().default('none'),
-  tags: z.array(z.string()).optional().default([])
-});
-
-type TransactionFormData = z.infer<typeof transactionSchema>;
-
-/**
- * Acción del servidor para crear una nueva transacción
- */
-export async function createTransaction(userId: string, formData: FormData) {
-  try {
-    // Extraer y transformar datos del formulario
-    const rawData = {
-      type: formData.get('type'),
-      amount: parseFloat(formData.get('amount') as string),
-      category: formData.get('category'),
-      description: formData.get('description'),
-      date: formData.get('date'),
-      isRecurrent: formData.get('isRecurrent') === 'on',
-      recurrenceFrequency: formData.get('recurrenceFrequency'),
-      tags: formData.getAll('tags').map(tag => tag.toString())
-    };
-    
-    // Validar datos con Zod
-    const validatedData = transactionSchema.parse(rawData);
-
-    // En producción, esto haría una llamada a la API real
-    // Por ahora, simulamos una respuesta exitosa
-    const response = await fetch('/api/transactions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        user: userId,
-        ...validatedData
-      }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      return { success: false, error: errorData.message || 'Error creando transacción' };
+export async function createTransaction(formData: FormData) {
+    // 1) Verificar sesión en servidor
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+        return { success: false, error: "No autenticado" };
     }
 
-    // Revalidar la página del dashboard para reflejar la nueva transacción
-    revalidatePath('/dashboard');
-    
-    return { 
-      success: true, 
-      data: validatedData 
-    };
-  } catch (error) {
-    console.error('Error en createTransaction:', error);
-    
-    if (error instanceof z.ZodError) {
-      const fieldErrors = error.flatten().fieldErrors;
-      return { 
-        success: false, 
-        validationErrors: fieldErrors 
-      };
+    try {
+        // 2) Conectar a la base de datos
+        await connectDB();
+
+        // 3) Extraer campos de FormData y normalizar tipos
+        const data: {
+            type: string;
+            amount: number;
+            category: string;
+            description: string;
+            date: string;
+            isRecurrent: boolean;
+            recurrenceFrequency: string;
+            tags: string[];
+            user: string;
+        } = {
+            type: "",
+            amount: 0,
+            category: "",
+            description: "",
+            date: "",
+            isRecurrent: false,
+            recurrenceFrequency: "none",
+            tags: [],
+            user: session.user.id,
+        };
+
+        formData.forEach((value, key) => {
+            switch (key) {
+                case "amount":
+                    data.amount = parseFloat(value.toString());
+                    break;
+                case "isRecurrent":
+                    data.isRecurrent = value === "on";
+                    break;
+                case "tags":
+                    data.tags.push(value.toString());
+                    break;
+                default:
+                    // @ts-ignore
+                    data[key] = value.toString();
+            }
+        });
+
+        // 4) Crear la transacción asociada al usuario
+        const tx = await Transaction.create(data);
+
+        return { success: true, data: tx };
+    } catch (err: any) {
+        console.error("createTransaction error:", err);
+        return {
+            success: false,
+            error: "Error interno al crear la transacción",
+        };
     }
-    
-    return { 
-      success: false, 
-      error: 'Error al procesar la transacción' 
-    };
-  }
-}
-
-/**
- * Versión para usar directamente con datos, no con FormData
- */
-export async function createTransactionDirect(userId: string, data: TransactionFormData) {
-  try {
-    // Validar datos con Zod
-    const validatedData = transactionSchema.parse(data);
-
-    // Simular llamada a API
-    const response = await fetch('/api/transactions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        user: userId,
-        ...validatedData
-      }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      return { success: false, error: errorData.message || 'Error creando transacción' };
-    }
-
-    // Revalidar la página del dashboard
-    revalidatePath('/dashboard');
-    
-    return { 
-      success: true, 
-      data: validatedData 
-    };
-  } catch (error) {
-    console.error('Error en createTransactionDirect:', error);
-    
-    if (error instanceof z.ZodError) {
-      const fieldErrors = error.flatten().fieldErrors;
-      return { 
-        success: false, 
-        validationErrors: fieldErrors 
-      };
-    }
-    
-    return { 
-      success: false, 
-      error: 'Error al procesar la transacción' 
-    };
-  }
 }

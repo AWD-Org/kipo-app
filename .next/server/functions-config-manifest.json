@@ -1,1 +1,1 @@
-{"version":1,"functions":{"/api/auth/onboarding":{}}}
+{"version":1,"functions":{"/api/auth/onboarding":{},"/api/transactions":{},"/dashboard/goals/[id]":{}}}

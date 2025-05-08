@@ -1,409 +1,315 @@
-'use client';
+// src/app/dashboard/new-goal/page.tsx
+"use client";
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, ArrowLeft, CalendarIcon, Target } from 'lucide-react';
-import { createGoal } from '@/app/actions/createGoal';
-import { useSession } from 'next-auth/react';
-import { calculateProgress, formatCurrency } from '@/lib/utils';
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+    Card,
+    CardHeader,
+    CardTitle,
+    CardContent,
+    CardFooter,
+    CardDescription,
+} from "@/components/ui/card";
+import { Loader2, ArrowLeft, CalendarIcon } from "lucide-react";
+import { createGoal } from "@/app/actions/createGoal";
+import { calculateProgress, formatCurrency } from "@/lib/utils";
 
-// Categorías predefinidas para metas
-const GOAL_CATEGORIES = [
-  'ahorro', 'inversión', 'deuda', 'compra', 'otro'
-];
+const CATEGORIES = ["ahorro", "inversión", "deuda", "compra", "otro"] as const;
+const PRIORITIES = ["baja", "media", "alta"] as const;
+const REMINDERS = [
+    ["none", "Sin recordatorios"],
+    ["daily", "Diario"],
+    ["weekly", "Semanal"],
+    ["monthly", "Mensual"],
+] as const;
 
-// Prioridades disponibles
-const GOAL_PRIORITIES = [
-  'baja', 'media', 'alta'
-];
-
-// Frecuencias para recordatorios
-const REMINDER_FREQUENCIES = [
-  { value: 'none', label: 'Sin recordatorios' },
-  { value: 'daily', label: 'Diario' },
-  { value: 'weekly', label: 'Semanal' },
-  { value: 'monthly', label: 'Mensual' }
-];
-
-export default function GoalsForm() {
-  const router = useRouter();
-  const { data: session } = useSession();
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
-  
-  // Estado del formulario
-  const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    targetAmount: '',
-    currentAmount: '0',
-    startDate: new Date().toISOString().split('T')[0],
-    targetDate: '',
-    category: 'ahorro',
-    priority: 'media',
-    reminderFrequency: 'none'
-  });
-
-  // Manejador para cambios en el formulario
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setFormData({
-      ...formData,
-      [name]: value
+export default function NewGoalPage() {
+    const router = useRouter();
+    const { data: session } = useSession();
+    const [form, setForm] = useState({
+        title: "",
+        description: "",
+        targetAmount: "",
+        currentAmount: "0",
+        startDate: new Date().toISOString().substr(0, 10),
+        targetDate: "",
+        category: "ahorro",
+        priority: "media",
+        reminderFrequency: "none",
     });
-  };
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState("");
+    const [success, setSuccess] = useState(false);
 
-  // Manejar envío del formulario
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    try {
-      setIsLoading(true);
-      setError('');
-      setSuccess(false);
+    const onChange = (
+        e: React.ChangeEvent<
+            HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+        >
+    ) => {
+        const { name, value } = e.target;
+        setForm((f) => ({ ...f, [name]: value }));
+    };
 
-      if (!session?.user?.id) {
-        setError('Debes iniciar sesión para realizar esta acción');
-        return;
-      }
-
-      // Validaciones básicas
-      if (!formData.title.trim()) {
-        setError('El título de la meta es requerido');
-        return;
-      }
-
-      if (!formData.targetAmount || parseFloat(formData.targetAmount) <= 0) {
-        setError('El monto objetivo debe ser mayor a cero');
-        return;
-      }
-
-      if (parseFloat(formData.currentAmount) < 0) {
-        setError('El monto actual no puede ser negativo');
-        return;
-      }
-
-      if (!formData.targetDate) {
-        setError('La fecha objetivo es requerida');
-        return;
-      }
-
-      const today = new Date();
-      const targetDate = new Date(formData.targetDate);
-      if (targetDate <= today) {
-        setError('La fecha objetivo debe ser en el futuro');
-        return;
-      }
-
-      // Crear FormData para enviar a la acción del servidor
-      const serverFormData = new FormData();
-      Object.entries(formData).forEach(([key, value]) => {
-        serverFormData.append(key, value.toString());
-      });
-
-      // Llamar a la acción del servidor
-      const result = await createGoal(session.user.id, serverFormData);
-
-      if (!result.success) {
-        if (result.validationErrors) {
-          const errorMessages = Object.values(result.validationErrors).flat();
-          setError(errorMessages.join(', '));
-        } else {
-          setError(result.error || 'Error al crear la meta');
+    const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        if (!session?.user?.id) {
+            setError("Debes iniciar sesión");
+            return;
         }
-        return;
-      }
+        setLoading(true);
+        setError("");
+        const res = await createGoal(new FormData(e.currentTarget));
+        setLoading(false);
 
-      // Mostrar mensaje de éxito 
-      setSuccess(true);
-      
-      // Opcional: resetear el formulario o redirigir
-      if (window.confirm('Meta creada con éxito. ¿Deseas crear otra?')) {
-        setFormData({
-          title: '',
-          description: '',
-          targetAmount: '',
-          currentAmount: '0',
-          startDate: new Date().toISOString().split('T')[0],
-          targetDate: '',
-          category: 'ahorro',
-          priority: 'media',
-          reminderFrequency: 'none'
-        });
-      } else {
-        router.push('/dashboard');
-      }
-    } catch (error) {
-      console.error('Error en createGoal:', error);
-      setError('Error al procesar la meta');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+        if (!res.success) {
+            setError(res.error || "Error creando meta");
+            return;
+        }
+        // Redirigir al listado de metas:
+        router.push("/dashboard/goals");
+    };
 
-  // Calcular progreso actual
-  const progress = calculateProgress(
-    parseFloat(formData.currentAmount) || 0, 
-    parseFloat(formData.targetAmount) || 1
-  );
+    const prog = calculateProgress(
+        parseFloat(form.currentAmount) || 0,
+        parseFloat(form.targetAmount) || 1
+    );
 
-  return (
-    <div className="kipo-form-container">
-      <form onSubmit={handleSubmit} className="space-y-8">
-        <div className="flex justify-between items-center">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => router.back()}
-            className="gap-1"
-          >
-            <ArrowLeft size={16} /> Volver
-          </Button>
-          <h1 className="text-2xl font-bold">Nueva meta financiera</h1>
-        </div>
+    return (
+        <form onSubmit={onSubmit} className="space-y-8 max-w-md mx-auto py-12">
+            <header className="flex justify-between items-center">
+                <Button
+                    variant="ghost"
+                    onClick={() => router.back()}
+                    size="sm"
+                    className="gap-1"
+                >
+                    <ArrowLeft size={16} /> Volver
+                </Button>
+                <h1 className="text-2xl font-bold">Nueva meta</h1>
+            </header>
 
-        {/* Título de la meta */}
-        <div className="space-y-2">
-          <label htmlFor="title" className="text-sm font-medium">
-            Título de la meta
-          </label>
-          <Input
-            id="title"
-            name="title"
-            placeholder="Ej. Fondo de emergencia, Vacaciones, etc."
-            value={formData.title}
-            onChange={handleChange}
-            required
-          />
-        </div>
+            {/* Título */}
+            <Card>
+                <CardHeader>
+                    <CardTitle>Título</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <Input
+                        name="title"
+                        value={form.title}
+                        onChange={onChange}
+                        required
+                    />
+                </CardContent>
+            </Card>
 
-        {/* Descripción */}
-        <div className="space-y-2">
-          <label htmlFor="description" className="text-sm font-medium">
-            Descripción (opcional)
-          </label>
-          <textarea
-            id="description"
-            name="description"
-            placeholder="Descripción detallada de tu meta"
-            value={formData.description}
-            onChange={handleChange}
-            className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-          />
-        </div>
+            {/* Descripción */}
+            <Card>
+                <CardHeader>
+                    <CardTitle>Descripción</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <textarea
+                        name="description"
+                        value={form.description}
+                        onChange={onChange}
+                        className="w-full rounded border p-2"
+                    />
+                </CardContent>
+            </Card>
 
-        {/* Monto objetivo */}
-        <div className="space-y-2">
-          <label htmlFor="targetAmount" className="text-sm font-medium">
-            Monto objetivo
-          </label>
-          <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-              $
-            </span>
-            <Input
-              id="targetAmount"
-              name="targetAmount"
-              type="number"
-              placeholder="0.00"
-              value={formData.targetAmount}
-              onChange={handleChange}
-              className="pl-8"
-              step="0.01"
-              min="0"
-              required
-            />
-          </div>
-        </div>
+            {/* Montos */}
+            <Card>
+                <CardHeader>
+                    <CardTitle>Montos</CardTitle>
+                    <CardDescription>Objetivo y progreso</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2">
+                            $
+                        </span>
+                        <Input
+                            name="targetAmount"
+                            type="number"
+                            value={form.targetAmount}
+                            onChange={onChange}
+                            placeholder="Objetivo"
+                            className="pl-8"
+                            step="0.01"
+                            min="0"
+                            required
+                        />
+                    </div>
+                    <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2">
+                            $
+                        </span>
+                        <Input
+                            name="currentAmount"
+                            type="number"
+                            value={form.currentAmount}
+                            onChange={onChange}
+                            placeholder="Actual"
+                            className="pl-8"
+                            step="0.01"
+                            min="0"
+                        />
+                    </div>
 
-        {/* Monto actual */}
-        <div className="space-y-2">
-          <label htmlFor="currentAmount" className="text-sm font-medium">
-            Monto actual (si ya tienes ahorrado algo)
-          </label>
-          <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-              $
-            </span>
-            <Input
-              id="currentAmount"
-              name="currentAmount"
-              type="number"
-              placeholder="0.00"
-              value={formData.currentAmount}
-              onChange={handleChange}
-              className="pl-8"
-              step="0.01"
-              min="0"
-            />
-          </div>
-        </div>
+                    {!!form.targetAmount && (
+                        <div>
+                            <div className="flex justify-between text-sm">
+                                <span>Progreso</span>
+                                <span>{Math.round(prog)}%</span>
+                            </div>
+                            <div className="w-full bg-secondary h-2.5 rounded">
+                                <div
+                                    className="bg-primary h-2.5 rounded"
+                                    style={{ width: `${prog}%` }}
+                                />
+                            </div>
+                            <div className="flex justify-between text-xs text-muted-foreground">
+                                <span>
+                                    {formatCurrency(
+                                        parseFloat(form.currentAmount) || 0
+                                    )}
+                                </span>
+                                <span>
+                                    {formatCurrency(
+                                        parseFloat(form.targetAmount) || 0
+                                    )}
+                                </span>
+                            </div>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
 
-        {/* Barra de progreso */}
-        {formData.targetAmount && parseFloat(formData.targetAmount) > 0 && (
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span>Progreso actual</span>
-              <span>{Math.round(progress)}%</span>
+            {/* Fechas */}
+            <div className="grid grid-cols-2 gap-4">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Inicio</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="relative">
+                            <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2" />
+                            <Input
+                                name="startDate"
+                                type="date"
+                                value={form.startDate}
+                                onChange={onChange}
+                                className="pl-10"
+                                required
+                            />
+                        </div>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Vence</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="relative">
+                            <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2" />
+                            <Input
+                                name="targetDate"
+                                type="date"
+                                value={form.targetDate}
+                                onChange={onChange}
+                                className="pl-10"
+                                required
+                            />
+                        </div>
+                    </CardContent>
+                </Card>
             </div>
-            <div className="w-full bg-secondary rounded-full h-2.5">
-              <div
-                className="bg-primary h-2.5 rounded-full"
-                style={{ width: `${progress}%` }}
-              ></div>
+
+            {/* Categoría y prioridad */}
+            <div className="grid grid-cols-2 gap-4">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Categoría</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <select
+                            name="category"
+                            value={form.category}
+                            onChange={onChange}
+                            className="w-full border rounded p-2"
+                        >
+                            {CATEGORIES.map((c) => (
+                                <option key={c} value={c}>
+                                    {c}
+                                </option>
+                            ))}
+                        </select>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Prioridad</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <select
+                            name="priority"
+                            value={form.priority}
+                            onChange={onChange}
+                            className="w-full border rounded p-2"
+                        >
+                            {PRIORITIES.map((p) => (
+                                <option key={p} value={p}>
+                                    {p}
+                                </option>
+                            ))}
+                        </select>
+                    </CardContent>
+                </Card>
             </div>
-            <div className="flex justify-between text-sm text-muted-foreground">
-              <span>{formatCurrency(parseFloat(formData.currentAmount) || 0)}</span>
-              <span>{formatCurrency(parseFloat(formData.targetAmount) || 0)}</span>
-            </div>
-          </div>
-        )}
 
-        {/* Fechas */}
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <label htmlFor="startDate" className="text-sm font-medium">
-              Fecha de inicio
-            </label>
-            <div className="relative">
-              <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                id="startDate"
-                name="startDate"
-                type="date"
-                value={formData.startDate}
-                onChange={handleChange}
-                className="pl-10"
-                required
-              />
-            </div>
-          </div>
-          <div className="space-y-2">
-            <label htmlFor="targetDate" className="text-sm font-medium">
-              Fecha objetivo
-            </label>
-            <div className="relative">
-              <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                id="targetDate"
-                name="targetDate"
-                type="date"
-                value={formData.targetDate}
-                onChange={handleChange}
-                className="pl-10"
-                required
-              />
-            </div>
-          </div>
-        </div>
+            {/* Recordatorios */}
+            <Card>
+                <CardHeader>
+                    <CardTitle>Recordatorios</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <select
+                        name="reminderFrequency"
+                        value={form.reminderFrequency}
+                        onChange={onChange}
+                        className="w-full border rounded p-2"
+                    >
+                        {REMINDERS.map(([v, l]) => (
+                            <option key={v} value={v}>
+                                {l}
+                            </option>
+                        ))}
+                    </select>
+                </CardContent>
+            </Card>
 
-        {/* Categoría y Prioridad */}
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <label htmlFor="category" className="text-sm font-medium">
-              Categoría
-            </label>
-            <select
-              id="category"
-              name="category"
-              value={formData.category}
-              onChange={handleChange}
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-              required
-            >
-              {GOAL_CATEGORIES.map(category => (
-                <option key={category} value={category}>
-                  {category.charAt(0).toUpperCase() + category.slice(1)}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="space-y-2">
-            <label htmlFor="priority" className="text-sm font-medium">
-              Prioridad
-            </label>
-            <select
-              id="priority"
-              name="priority"
-              value={formData.priority}
-              onChange={handleChange}
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-              required
-            >
-              {GOAL_PRIORITIES.map(priority => (
-                <option key={priority} value={priority}>
-                  {priority.charAt(0).toUpperCase() + priority.slice(1)}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
+            {error && <div className="text-red-600">{error}</div>}
 
-        {/* Recordatorios */}
-        <div className="space-y-2">
-          <label htmlFor="reminderFrequency" className="text-sm font-medium">
-            Recordatorios
-          </label>
-          <select
-            id="reminderFrequency"
-            name="reminderFrequency"
-            value={formData.reminderFrequency}
-            onChange={handleChange}
-            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {REMINDER_FREQUENCIES.map(freq => (
-              <option key={freq.value} value={freq.value}>
-                {freq.label}
-              </option>
-            ))}
-          </select>
-          <p className="text-xs text-muted-foreground">
-            Recibirás recordatorios para contribuir a esta meta según la frecuencia seleccionada.
-          </p>
-        </div>
-
-        {/* Mensajes de error/éxito */}
-        {error && (
-          <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
-            {error}
-          </div>
-        )}
-        
-        {success && (
-          <div className="rounded-md bg-green-100 p-3 text-sm text-green-800">
-            Meta creada con éxito.
-          </div>
-        )}
-
-        {/* Botones de acción */}
-        <div className="flex justify-end gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => router.back()}
-          >
-            Cancelar
-          </Button>
-          <Button
-            type="submit"
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Guardando...
-              </>
-            ) : (
-              'Guardar meta'
-            )}
-          </Button>
-        </div>
-      </form>
-    </div>
-  );
+            <CardFooter className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => router.back()}>
+                    Cancelar
+                </Button>
+                <Button type="submit" disabled={loading}>
+                    {loading ? (
+                        <>
+                            <Loader2 className="animate-spin mr-2" />
+                            Guardando...
+                        </>
+                    ) : (
+                        "Guardar meta"
+                    )}
+                </Button>
+            </CardFooter>
+        </form>
+    );
 }

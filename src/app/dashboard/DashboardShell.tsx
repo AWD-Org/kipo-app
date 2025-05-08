@@ -79,26 +79,7 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
                     ))}
                 </nav>
                 <div className="p-4 border-t flex flex-col gap-2">
-                    <Button
-                        variant="outline"
-                        className="w-full justify-start gap-2"
-                        asChild
-                    >
-                        <Link href="/dashboard/new-transaction">
-                            <PlusCircle className="h-4 w-4" />
-                            Nueva transacción
-                        </Link>
-                    </Button>
-                    <Button
-                        variant="outline"
-                        className="w-full justify-start gap-2"
-                        asChild
-                    >
-                        <Link href="/dashboard/new-goal">
-                            <PlusCircle className="h-4 w-4" />
-                            Nueva meta
-                        </Link>
-                    </Button>
+                    
                     <Button
                         variant="ghost"
                         className="w-full justify-start gap-2 mt-4 text-muted-foreground hover:bg-accent hover:text-accent-foreground"

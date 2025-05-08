@@ -10,7 +10,7 @@
     "postinstall": "npx tailwindcss init -p"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.10.0",
+    "@anthropic-ai/sdk": "^0.41.0",
     "@radix-ui/react-slot": "^1.0.2",
     "@reduxjs/toolkit": "^2.0.1",
     "@sendgrid/mail": "^7.7.0",

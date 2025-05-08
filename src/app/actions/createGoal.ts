@@ -1,137 +1,116 @@
-'use server';
+// src/app/actions/createGoal.ts
+"use server";
 
-import { z } from 'zod';
-import { revalidatePath } from 'next/cache';
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth";
+import connectDB from "@/lib/mongodb";
+import { revalidatePath } from "next/cache";
+import { z } from "zod";
 
-// Esquema de validación con Zod
+import Goal from "../../../models/Goal";
+import Transaction from "../../../models/Transaction";
+import { generateSavingPlan } from "@/lib/financialAI";
+
+// Validación con Zod
 const goalSchema = z.object({
-  title: z.string().min(1, { message: 'El título es requerido' }),
-  description: z.string().optional(),
-  targetAmount: z.number().positive({ message: 'El monto objetivo debe ser positivo' }),
-  currentAmount: z.number().nonnegative({ message: 'El monto actual no puede ser negativo' }).optional().default(0),
-  startDate: z.string().transform(str => new Date(str)).optional().default(() => new Date().toISOString()),
-  targetDate: z.string().transform(str => new Date(str)),
-  category: z.enum(['ahorro', 'inversión', 'deuda', 'compra', 'otro']).default('ahorro'),
-  priority: z.enum(['baja', 'media', 'alta']).default('media'),
-  reminderFrequency: z.enum(['none', 'daily', 'weekly', 'monthly']).default('none')
+    title: z.string().min(1, "El título es requerido"),
+    description: z.string().optional(),
+    targetAmount: z.coerce
+        .number()
+        .positive("El monto objetivo debe ser positivo"),
+    currentAmount: z.coerce
+        .number()
+        .nonnegative("El monto actual no puede ser negativo")
+        .default(0),
+    startDate: z.preprocess((v) => new Date(String(v)), z.date()),
+    targetDate: z.preprocess((v) => new Date(String(v)), z.date()),
+    category: z.enum(["ahorro", "inversión", "deuda", "compra", "otro"]),
+    priority: z.enum(["baja", "media", "alta"]),
+    reminderFrequency: z.enum(["none", "daily", "weekly", "monthly"]),
 });
+type GoalForm = z.infer<typeof goalSchema>;
 
-type GoalFormData = z.infer<typeof goalSchema>;
+export async function createGoal(formData: FormData) {
+    try {
+        // 1) Verificar sesión
+        const session = await getServerSession(authOptions);
+        if (!session?.user?.id) {
+            return { success: false, error: "No autenticado" };
+        }
 
-/**
- * Acción del servidor para crear una nueva meta
- */
-export async function createGoal(userId: string, formData: FormData) {
-  try {
-    // Extraer y transformar datos del formulario
-    const rawData = {
-      title: formData.get('title'),
-      description: formData.get('description'),
-      targetAmount: parseFloat(formData.get('targetAmount') as string),
-      currentAmount: formData.get('currentAmount') ? parseFloat(formData.get('currentAmount') as string) : 0,
-      startDate: formData.get('startDate') || new Date().toISOString(),
-      targetDate: formData.get('targetDate'),
-      category: formData.get('category'),
-      priority: formData.get('priority'),
-      reminderFrequency: formData.get('reminderFrequency')
-    };
-    
-    // Validar datos con Zod
-    const validatedData = goalSchema.parse(rawData);
+        // 2) Validar datos
+        const raw = Object.fromEntries(formData.entries());
+        const validated: GoalForm = goalSchema.parse(raw);
 
-    // En producción, esto haría una llamada a la API real
-    // Por ahora, simulamos una respuesta exitosa
-    const response = await fetch('/api/goals', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        user: userId,
-        ...validatedData,
-        isCompleted: validatedData.currentAmount >= validatedData.targetAmount,
-        isActive: true
-      }),
-    });
+        // 3) Conectar a la BD
+        await connectDB();
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      return { success: false, error: errorData.message || 'Error creando meta' };
+        // 4) Leer transacciones últimos 30 días
+        const since = new Date();
+        since.setDate(since.getDate() - 30);
+        const txs = await Transaction.find({
+            user: session.user.id,
+            date: { $gte: since },
+        }).lean();
+
+        const monthlyIncome = txs
+            .filter((t) => t.type === "ingreso")
+            .reduce((sum, t) => sum + t.amount, 0);
+        const monthlyExpenses = txs
+            .filter((t) => t.type === "gasto")
+            .reduce((sum, t) => sum + t.amount, 0);
+
+        // 5) Generar plan de ahorro sugerido
+        const suggestedPlan = await generateSavingPlan({
+            monthlyIncome,
+            monthlyExpenses,
+            savingGoal: validated.targetAmount,
+            startDate: validated.startDate.toISOString(),
+            targetDate: validated.targetDate.toISOString(),
+        });
+
+        // 6) Crear la meta en DB
+        const createdDoc = await Goal.create({
+            user: session.user.id,
+            ...validated,
+            isCompleted: validated.currentAmount >= validated.targetAmount,
+            isActive: true,
+            suggestedPlan,
+        });
+
+        // 7) Revalidar ruta
+        revalidatePath("/dashboard/goals");
+
+        // 8) Construir un objeto plano para devolver
+        const plain = {
+            id: createdDoc._id.toString(),
+            title: createdDoc.title,
+            description: createdDoc.description,
+            targetAmount: createdDoc.targetAmount,
+            currentAmount: createdDoc.currentAmount,
+            startDate: createdDoc.startDate.toISOString(),
+            targetDate: createdDoc.targetDate.toISOString(),
+            category: createdDoc.category,
+            priority: createdDoc.priority,
+            reminderFrequency: createdDoc.reminderFrequency,
+            isCompleted: createdDoc.isCompleted,
+            isActive: createdDoc.isActive,
+            suggestedPlan: {
+                monthly: createdDoc.suggestedPlan.monthly,
+                weekly: createdDoc.suggestedPlan.weekly,
+            },
+        };
+
+        return { success: true, data: plain };
+    } catch (err: any) {
+        // Zod
+        if (err instanceof z.ZodError) {
+            return {
+                success: false,
+                validationErrors: err.flatten().fieldErrors,
+            };
+        }
+        console.error("createGoal error:", err);
+        return { success: false, error: "Error al procesar la meta" };
     }
-
-    // Revalidar la página del dashboard para reflejar la nueva meta
-    revalidatePath('/dashboard');
-    
-    return { 
-      success: true, 
-      data: validatedData 
-    };
-  } catch (error) {
-    console.error('Error en createGoal:', error);
-    
-    if (error instanceof z.ZodError) {
-      const fieldErrors = error.flatten().fieldErrors;
-      return { 
-        success: false, 
-        validationErrors: fieldErrors 
-      };
-    }
-    
-    return { 
-      success: false, 
-      error: 'Error al procesar la meta' 
-    };
-  }
-}
-
-/**
- * Versión para usar directamente con datos, no con FormData
- */
-export async function createGoalDirect(userId: string, data: GoalFormData) {
-  try {
-    // Validar datos con Zod
-    const validatedData = goalSchema.parse(data);
-
-    // Simular llamada a API
-    const response = await fetch('/api/goals', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        user: userId,
-        ...validatedData,
-        isCompleted: validatedData.currentAmount >= validatedData.targetAmount,
-        isActive: true
-      }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      return { success: false, error: errorData.message || 'Error creando meta' };
-    }
-
-    // Revalidar la página del dashboard
-    revalidatePath('/dashboard');
-    
-    return { 
-      success: true, 
-      data: validatedData 
-    };
-  } catch (error) {
-    console.error('Error en createGoalDirect:', error);
-    
-    if (error instanceof z.ZodError) {
-      const fieldErrors = error.flatten().fieldErrors;
-      return { 
-        success: false, 
-        validationErrors: fieldErrors 
-      };
-    }
-    
-    return { 
-      success: false, 
-      error: 'Error al procesar la meta' 
-    };
-  }
 }
