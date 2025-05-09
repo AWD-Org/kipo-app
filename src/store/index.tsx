@@ -8,7 +8,8 @@ import transactionsReducer from './slices/transactionsSlice';
 import goalsReducer from './slices/goalsSlice';
 import alertsReducer from './slices/alertsSlice';
 import analyticsReducer from './slices/analyticsSlice';
-import cardsReducer from './slices/cardsSlice'; // Asegúrate de importar el reducer de tarjetas
+import cardsReducer from './slices/cardsSlice';
+import recommendationReducer from './slices/recommendationsSlice';
 
 // Configurar el store de Redux
 export const store = configureStore({
@@ -17,7 +18,8 @@ export const store = configureStore({
     goals: goalsReducer,
     alerts: alertsReducer,
     analytics: analyticsReducer,
-    cards: cardsReducer, // Asegúrate de importar y agregar el reducer de tarjetas
+    cards: cardsReducer,
+    recommendations: recommendationReducer,
   },
   // Middleware personalizado puede agregarse aquí si es necesario
 });

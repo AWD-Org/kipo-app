@@ -14,7 +14,10 @@ import {
     CardFooter,
 } from "@/components/ui/card";
 import Link from "next/link";
-import { ArrowRight, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import { FcGoogle } from "react-icons/fc";
+import logo from "../assets/icon.png";
+import Image from "next/image";
 
 export default function Signup() {
     const router = useRouter();
@@ -75,6 +78,13 @@ export default function Signup() {
     return (
         <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-12">
             <Card className="w-full max-w-md">
+                <Image
+                    src={logo}
+                    alt="Logo"
+                    className="mx-auto mt-8"
+                    width={80}
+                    height={80}
+                />
                 <CardHeader className="text-center space-y-1">
                     <CardTitle className="text-2xl font-bold">
                         Crear una cuenta
@@ -177,6 +187,16 @@ export default function Signup() {
                             )}
                         </Button>
                     </form>
+                    {/* <Button
+                        variant="outline"
+                        className="w-full flex items-center justify-center space-x-2 mt-4"
+                        onClick={() =>
+                            signIn("google", { callbackUrl: "/dashboard" })
+                        }
+                    >
+                        <FcGoogle className="h-5 w-5" />
+                        <span>Continuar con Google</span>
+                    </Button> */}
                 </CardContent>
                 <CardFooter className="text-center">
                     <p className="text-sm">

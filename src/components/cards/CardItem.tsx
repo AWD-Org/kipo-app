@@ -70,7 +70,7 @@ export function CardItem({ card }: { card: TCard }) {
                         alt={`${card.brand} logo`}
                         width={48}
                         height={48}
-                        className="object-contain opacity-20"
+                        className="object-contain "
                     />
                 ) : null}
             </div>

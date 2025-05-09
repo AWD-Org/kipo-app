@@ -5,14 +5,14 @@ import { usePathname, useRouter } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import {
     LayoutDashboard,
-    CreditCard,
     Target,
     BellRing,
     LogOut,
-    CreditCard as CardIcon,
+    DollarSign,
+    WalletCards
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import Image from "next/image";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ReactNode, useEffect } from "react";
@@ -46,7 +46,7 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
         {
             name: "Transacciones",
             href: "/dashboard/transactions",
-            icon: <CreditCard className="h-5 w-5" />,
+            icon: <DollarSign className="h-5 w-5" />,
         },
         {
             name: "Metas",
@@ -56,7 +56,7 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
         {
             name: "Tarjetas",
             href: "/dashboard/cards",
-            icon: <CardIcon className="h-5 w-5" />,
+            icon: <WalletCards className="h-5 w-5" />,
         },
         {
             name: "Alertas",

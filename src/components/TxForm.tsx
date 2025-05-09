@@ -109,8 +109,29 @@ export default function NewTransactionPage() {
             if (!res.ok) {
                 setError(body.error || "Error al crear la transacción");
             } else {
-                // redirige directamente sin confirm
-                router.push("/dashboard/transactions");
+                // Procesar las recomendaciones si existen
+                if (
+                    body.data?.recommendations &&
+                    body.data.recommendations.length > 0
+                ) {
+                    // Opción 1: Almacenar las recomendaciones en el estado global (Redux)
+                    // Si estás usando Redux, importa el dispatch y utilizalo:
+                    // import { useDispatch } from 'react-redux';
+                    // const dispatch = useDispatch();
+                    // dispatch(setRecommendations(body.data.recommendations));
+
+                    // O usar localStorage para mantenerlas temporalmente
+                    localStorage.setItem(
+                        "latestRecommendations",
+                        JSON.stringify(body.data.recommendations)
+                    );
+                    router.push(
+                        `/dashboard/transactions?showRecs=true&txId=${body.data.transaction._id}`
+                    );
+                } else {
+                    // Si no hay recomendaciones, simplemente redirige
+                    router.push("/dashboard/transactions");
+                }
             }
         } catch (err) {
             console.error(err);

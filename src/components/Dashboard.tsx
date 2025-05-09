@@ -26,15 +26,17 @@ import {
     Tooltip,
     Legend,
     ResponsiveContainer,
-    Cell,
 } from "recharts";
 import {
     Plus,
     ChevronRight,
     Wallet,
     Target,
-    Bell,
     TrendingUp,
+    AlertTriangle,
+    AlertCircle,
+    Lightbulb,
+    Target as TargetIcon,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -42,7 +44,9 @@ import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { fetchTransactions } from "@/store/thunks/transactionsThunks";
 import { fetchGoals } from "@/store/thunks/goalsThunks";
 import { fetchAnalyticsSummary } from "@/store/thunks/analyticsThunks";
+import { fetchRecommendations } from "@/store/thunks/recommendationsThunks";
 import { AnalyticsSummary } from "@/types/analytics";
+import { Recommendation } from "@/types/recommendation";
 
 const COLORS = [
     "#111111", // Muy oscuro
@@ -55,6 +59,14 @@ const COLORS = [
     "#EEEEEE",
     "#F5F5F5", // Casi blanco
 ];
+
+// Mapeo de tipos de recomendación a iconos y colores
+const RECOMMENDATION_ICONS = {
+    ALERTA_CATEGORIA: { icon: AlertTriangle, color: "text-amber-500" },
+    ALERTA_GLOBAL: { icon: AlertCircle, color: "text-red-500" },
+    CONSEJO_HABITO: { icon: Lightbulb, color: "text-blue-500" },
+    META_NUEVA: { icon: TargetIcon, color: "text-green-500" },
+};
 
 export default function DashboardPage() {
     const dispatch = useAppDispatch();
@@ -74,12 +86,24 @@ export default function DashboardPage() {
     ) as AnalyticsSummary;
     const analyticsLoading = useAppSelector((s) => s.analytics.loading);
 
+    // Recomendaciones
+    const recommendations = useAppSelector((s) => s.recommendations.items);
+    const recsLoading = useAppSelector((s) => s.recommendations.loading);
+    const recsError = useAppSelector((s) => s.recommendations.error);
+
     // Fetch data on mount
     useEffect(() => {
         if (!userId) return;
+
         dispatch(fetchTransactions());
         dispatch(fetchGoals());
         dispatch(fetchAnalyticsSummary({ userId }));
+
+        dispatch(
+            fetchRecommendations({
+                limit: 100,
+            })
+        );
     }, [dispatch, userId]);
 
     // Prepare chart data
@@ -91,12 +115,12 @@ export default function DashboardPage() {
             else acc.push({ name: t.category, value: t.amount });
             return acc;
         }, []);
-    console.log("pieData", pieData);
+
     const maxValue = Math.max(...pieData.map((d) => d.value), 0) || 1;
     const grouped = transactions.reduce<
         Record<string, { date: string; ingresos: number; gastos: number }>
     >((acc, t) => {
-        const d = t.date.slice(0, 10);
+        const d = (t.date as string).slice(0, 10);
         if (!acc[d]) acc[d] = { date: d, ingresos: 0, gastos: 0 };
         acc[d][t.type === "ingreso" ? "ingresos" : "gastos"] += t.amount;
         return acc;
@@ -119,6 +143,38 @@ export default function DashboardPage() {
             </div>
         );
     }
+
+    // Renderizar una recomendación individual
+    const renderRecommendation = (rec: Recommendation) => {
+        const { icon: Icon, color } = RECOMMENDATION_ICONS[rec.type] || {
+            icon: Lightbulb,
+            color: "text-gray-500",
+        };
+
+        return (
+            <div
+                key={rec._id}
+                className="flex items-start gap-3 border-b pb-4 mb-4 last:border-b-0 last:mb-0 last:pb-0"
+            >
+                <div className={`p-2 rounded-full ${color} bg-opacity-10 mt-1`}>
+                    <Icon size={18} className={color} />
+                </div>
+                <div className="flex-1">
+                    <h4 className="font-medium">{rec.title}</h4>
+                    <p className="text-sm text-muted-foreground mt-1">
+                        {rec.message}
+                    </p>
+                    {rec.relatedCategory && (
+                        <div className="text-xs text-muted-foreground mt-2 inline-flex items-center">
+                            <span className="bg-gray-200 rounded-full px-2 py-1">
+                                {rec.relatedCategory}
+                            </span>
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    };
 
     return (
         <div className="space-y-6 p-6">
@@ -491,8 +547,7 @@ export default function DashboardPage() {
                         </Link>
                     </CardHeader>
                     <CardContent>
-                        {/* Replace following with real alerts slice & loading state */}
-                        <Skeleton className="h-40 w-full rounded" />
+                        
                     </CardContent>
                 </Card>
             </div>
@@ -507,14 +562,26 @@ export default function DashboardPage() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    {/* Replace with real AI slice & loading state */}
-                    <Skeleton className="h-60 w-full rounded" />
+                    {recsLoading && (
+                        <Skeleton className="h-60 w-full rounded" />
+                    )}
+                    {recsError && <p className="text-red-700">{recsError}</p>}
+
+                    {!recsLoading && !recsError && (
+                        <div className="max-h-96 overflow-y-auto space-y-4">
+                            {/* Mostrar todas las recomendaciones */}
+                            {recommendations.map(renderRecommendation)}
+
+                            {recommendations.length === 0 && (
+                                <p className="text-sm text-muted-foreground col-span-2 text-center py-10">
+                                    No hay recomendaciones disponibles.
+                                    Sigue usando la aplicación para recibir
+                                    consejos personalizados.
+                                </p>
+                            )}
+                        </div>
+                    )}
                 </CardContent>
-                <CardFooter>
-                    <Button variant="outline" className="w-full">
-                        Ver más recomendaciones
-                    </Button>
-                </CardFooter>
             </Card>
         </div>
     );
