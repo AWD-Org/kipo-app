@@ -54,7 +54,7 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
             icon: <Target className="h-5 w-5" />,
         },
         {
-            name: "Tarjetas",
+            name: "Wallet",
             href: "/dashboard/cards",
             icon: <WalletCards className="h-5 w-5" />,
         },

@@ -78,7 +78,7 @@ export default function NewGoalPage() {
     );
 
     return (
-        <Card className="max-w-lg mx-auto mt-12">
+        <Card className="max-w-lg mx-auto">
             <form onSubmit={onSubmit}>
                 <CardHeader className="flex items-center justify-between">
                     <Button

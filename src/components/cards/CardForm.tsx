@@ -67,7 +67,7 @@ export function CardForm({ initial = {}, isEdit = false }: CardFormProps) {
     };
 
     return (
-        <Card className="max-w-lg mx-auto mt-8">
+        <Card className="max-w-lg mx-auto">
             <form onSubmit={onSubmit} className="space-y-6">
                 <CardHeader className="flex items-center justify-between">
                     <Button
