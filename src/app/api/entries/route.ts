@@ -131,17 +131,45 @@ export async function POST(req: Request) {
     });
     
     console.log('[ENTRIES] Llamando a Transaction.create...');
-    const transaction = await Transaction.create({
-      user: auth.userId,
-      type: typeMapping[type as keyof typeof typeMapping],
-      amount: Number(amount),
-      category: category.trim(),
-      description: note || `Creado desde iOS Shortcuts - ${currency}`,
-      date: transactionDate,
-      isRecurrent: false,
-      recurrenceFrequency: 'none',
-      tags: ['shortcut', 'ios'], // Tags para identificar origen
-    });
+    
+    // Convertir userId string a ObjectId
+    const mongoose = require('mongoose');
+    const userObjectId = new mongoose.Types.ObjectId(auth.userId);
+    console.log('[ENTRIES] UserID convertido a ObjectId:', userObjectId);
+    
+    let transaction;
+    try {
+      transaction = await Transaction.create({
+        user: userObjectId, // Usar ObjectId en lugar de string
+        type: typeMapping[type as keyof typeof typeMapping],
+        amount: Number(amount),
+        category: category.trim(),
+        description: note || `Creado desde iOS Shortcuts - ${currency}`,
+        date: transactionDate,
+        isRecurrent: false,
+        recurrenceFrequency: 'none',
+        tags: ['shortcut', 'ios'], // Tags para identificar origen
+      });
+      
+      console.log('[ENTRIES] Transaction.create completado exitosamente!');
+      console.log('[ENTRIES] ID de transacción creada:', transaction._id?.toString());
+      console.log('[ENTRIES] Objeto transacción completo:', JSON.stringify(transaction, null, 2));
+      
+    } catch (createError) {
+      console.error('[ENTRIES] ERROR en Transaction.create:', createError);
+      if (createError && typeof createError === 'object' && 'stack' in createError) {
+        console.error('[ENTRIES] Stack trace:', (createError as { stack?: string }).stack);
+      }
+      
+      return NextResponse.json(
+        { 
+          error: 'Error al crear transacción',
+          code: 'CREATE_FAILED',
+          details: (createError && typeof createError === 'object' && 'message' in createError) ? (createError as { message?: string }).message : String(createError)
+        },
+        { status: 500 }
+      );
+    }
     
     console.log('[ENTRIES] Transaction.create completado. ID:', transaction._id?.toString());
     console.log('[ENTRIES] Transacción creada exitosamente:', transaction);
