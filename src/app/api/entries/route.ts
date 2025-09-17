@@ -114,8 +114,23 @@ export async function POST(req: Request) {
     }
 
     // 6. Crear transacción
+    console.log('[ENTRIES] Iniciando creación de transacción...');
     await connectToDatabase();
+    console.log('[ENTRIES] Conexión a DB para transacción establecida');
     
+    console.log('[ENTRIES] Datos para crear transacción:', {
+      userId: auth.userId,
+      type: typeMapping[type as keyof typeof typeMapping],
+      amount: Number(amount),
+      category: category.trim(),
+      description: note || `Creado desde iOS Shortcuts - ${currency}`,
+      date: transactionDate,
+      isRecurrent: false,
+      recurrenceFrequency: 'none',
+      tags: ['shortcut', 'ios']
+    });
+    
+    console.log('[ENTRIES] Llamando a Transaction.create...');
     const transaction = await Transaction.create({
       user: auth.userId,
       type: typeMapping[type as keyof typeof typeMapping],
@@ -127,6 +142,9 @@ export async function POST(req: Request) {
       recurrenceFrequency: 'none',
       tags: ['shortcut', 'ios'], // Tags para identificar origen
     });
+    
+    console.log('[ENTRIES] Transaction.create completado. ID:', transaction._id?.toString());
+    console.log('[ENTRIES] Transacción creada exitosamente:', transaction);
 
     // 7. Respuesta exitosa
     return NextResponse.json({
