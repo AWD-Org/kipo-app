@@ -51,7 +51,66 @@ const UserSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  
+  // 🆕 NUEVO: API Keys para Shortcuts de iOS
+  apiKeys: [{
+    _id: {
+      type: mongoose.Schema.Types.ObjectId,
+      default: () => new mongoose.Types.ObjectId(),
+    },
+    name: {
+      type: String,
+      required: true,
+      trim: true,
+      default: 'iOS Shortcut Token',
+    },
+    hash: {
+      type: String,
+      required: true,
+      select: false, // No incluir en consultas por defecto
+    },
+    createdAt: {
+      type: Date,
+      default: Date.now,
+    },
+    lastUsedAt: {
+      type: Date,
+      default: null,
+    },
+    revokedAt: {
+      type: Date,
+      default: null,
+    },
+  }],
+  
+  // 🆕 NUEVO: Preferencias de usuario
+  currency: {
+    type: String,
+    enum: ['MXN', 'USD', 'EUR', 'GBP', 'CAD'],
+    default: 'MXN',
+  },
+  language: {
+    type: String,
+    enum: ['es', 'en'],
+    default: 'es',
+  },
+  notifications: {
+    type: Boolean,
+    default: true,
+  },
+  darkMode: {
+    type: Boolean,
+    default: false,
+  },
+  autoBackup: {
+    type: Boolean,
+    default: true,
+  },
 });
+
+// Índice para acelerar búsquedas de tokens
+UserSchema.index({ 'apiKeys.hash': 1 });
+UserSchema.index({ 'apiKeys.revokedAt': 1 });
 
 // Encriptar contraseña usando bcrypt
 UserSchema.pre('save', async function (next) {

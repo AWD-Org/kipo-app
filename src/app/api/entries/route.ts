@@ -1,0 +1,221 @@
+// src/app/api/entries/route.ts
+import { NextResponse } from 'next/server';
+import { authenticateBearer } from '@/lib/authBearer';
+import { connectToDatabase } from '@/lib/mongodb';
+import Transaction from '../../../../models/Transaction';
+
+export const dynamic = 'force-dynamic';
+
+export async function POST(req: Request) {
+  try {
+    // 1. Autenticar usando Bearer token
+    const auth = await authenticateBearer(req);
+    if (!auth) {
+      return NextResponse.json(
+        { 
+          error: 'Token inválido o expirado',
+          code: 'INVALID_TOKEN'
+        },
+        { status: 401 }
+      );
+    }
+
+    // 2. Parsear body
+    let body;
+    try {
+      body = await req.json();
+    } catch (error) {
+      return NextResponse.json(
+        { 
+          error: 'JSON inválido en el body',
+          code: 'INVALID_JSON'
+        },
+        { status: 400 }
+      );
+    }
+
+    // 3. Validar campos requeridos
+    const {
+      type,           // 'expense' | 'income' (inglés para Shortcuts)
+      amount,         // number
+      category,       // string
+      note = '',      // string opcional
+      currency = 'USD', // string opcional
+      createdAt,      // string ISO opcional
+    } = body;
+
+    // Validaciones
+    if (!type || !['expense', 'income'].includes(type)) {
+      return NextResponse.json(
+        { 
+          error: 'type debe ser "expense" o "income"',
+          code: 'INVALID_TYPE',
+          received: type
+        },
+        { status: 400 }
+      );
+    }
+
+    if (!amount || typeof amount !== 'number' || amount <= 0) {
+      return NextResponse.json(
+        { 
+          error: 'amount debe ser un número positivo',
+          code: 'INVALID_AMOUNT',
+          received: amount
+        },
+        { status: 400 }
+      );
+    }
+
+    if (!category || typeof category !== 'string' || category.trim() === '') {
+      return NextResponse.json(
+        { 
+          error: 'category es requerida y debe ser un string',
+          code: 'INVALID_CATEGORY',
+          received: category
+        },
+        { status: 400 }
+      );
+    }
+
+    // 4. Mapear tipos de inglés a español (para compatibilidad con tu DB)
+    const typeMapping = {
+      'expense': 'gasto',
+      'income': 'ingreso'
+    };
+
+    // 5. Preparar fecha
+    let transactionDate;
+    if (createdAt) {
+      transactionDate = new Date(createdAt);
+      if (isNaN(transactionDate.getTime())) {
+        return NextResponse.json(
+          { 
+            error: 'createdAt debe ser una fecha ISO válida',
+            code: 'INVALID_DATE',
+            received: createdAt
+          },
+          { status: 400 }
+        );
+      }
+    } else {
+      transactionDate = new Date();
+    }
+
+    // 6. Crear transacción
+    await connectToDatabase();
+    
+    const transaction = await Transaction.create({
+      user: auth.userId,
+      type: typeMapping[type as keyof typeof typeMapping],
+      amount: Number(amount),
+      category: category.trim(),
+      description: note || `Creado desde iOS Shortcuts - ${currency}`,
+      date: transactionDate,
+      isRecurrent: false,
+      recurrenceFrequency: 'none',
+      tags: ['shortcut', 'ios'], // Tags para identificar origen
+    });
+
+    // 7. Respuesta exitosa
+    return NextResponse.json({
+      success: true,
+      data: {
+        id: transaction._id.toString(),
+        type,
+        amount,
+        category,
+        note,
+        currency,
+        createdAt: transaction.date.toISOString(),
+        source: 'shortcut',
+      },
+      message: `${type === 'expense' ? 'Gasto' : 'Ingreso'} registrado correctamente`
+    }, { status: 201 });
+
+  } catch (error) {
+    console.error('[entries] POST Error:', error);
+    
+    // Manejo de errores específicos de Mongoose
+    if (error && typeof error === 'object' && 'name' in error && (error as any).name === 'ValidationError') {
+      return NextResponse.json(
+        { 
+          error: 'Datos inválidos',
+          code: 'VALIDATION_ERROR',
+          details: (error as any).message
+        },
+        { status: 400 }
+      );
+    }
+
+    return NextResponse.json(
+      { 
+        error: 'Error interno del servidor',
+        code: 'INTERNAL_ERROR'
+      },
+      { status: 500 }
+    );
+  }
+}
+
+export async function GET(req: Request) {
+  try {
+    // Obtener transacciones del usuario autenticado (opcional para debug)
+    const auth = await authenticateBearer(req);
+    if (!auth) {
+      return NextResponse.json(
+        { 
+          error: 'Token inválido o expirado',
+          code: 'INVALID_TOKEN'
+        },
+        { status: 401 }
+      );
+    }
+
+    await connectToDatabase();
+    
+    // Obtener parámetros de query
+    const url = new URL(req.url);
+    const limit = parseInt(url.searchParams.get('limit') || '10');
+    const offset = parseInt(url.searchParams.get('offset') || '0');
+
+    const transactions = await Transaction.find({ 
+      user: auth.userId 
+    })
+    .sort({ date: -1 })
+    .limit(Math.min(limit, 100)) // Máximo 100
+    .skip(offset)
+    .lean();
+
+    // Mapear a formato amigable para Shortcuts
+    const formattedTransactions = transactions.map(tx => ({
+      id: (tx._id as string | { toString(): string }).toString(),
+      type: tx.type === 'gasto' ? 'expense' : 'income',
+      amount: tx.amount,
+      category: tx.category,
+      note: tx.description,
+      createdAt: tx.date.toISOString(),
+      tags: tx.tags,
+    }));
+
+    return NextResponse.json({
+      success: true,
+      data: formattedTransactions,
+      pagination: {
+        limit,
+        offset,
+        count: formattedTransactions.length,
+      }
+    });
+
+  } catch (error) {
+    console.error('[entries] GET Error:', error);
+    return NextResponse.json(
+      { 
+        error: 'Error interno del servidor',
+        code: 'INTERNAL_ERROR'
+      },
+      { status: 500 }
+    );
+  }
+}
