@@ -3,6 +3,8 @@ import { NextResponse } from 'next/server';
 import { authenticateBearer } from '@/lib/authBearer';
 import { connectToDatabase } from '@/lib/mongodb';
 import Transaction from '../../../../models/Transaction';
+// Cambiar el import del modelo
+const mongoose = require('mongoose');
 
 export const dynamic = 'force-dynamic';
 
@@ -132,8 +134,55 @@ export async function POST(req: Request) {
     
     console.log('[ENTRIES] Llamando a Transaction.create...');
     
+    // Definir el modelo Transaction directamente aquí
+    console.log('[ENTRIES] Definiendo modelo Transaction...');
+    
+    const TransactionSchema = new mongoose.Schema({
+      user: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true,
+      },
+      type: {
+        type: String,
+        enum: ['ingreso', 'gasto'],
+        required: [true, 'El tipo de transacción es requerido'],
+      },
+      amount: {
+        type: Number,
+        required: [true, 'El monto es requerido'],
+      },
+      category: {
+        type: String,
+        required: [true, 'La categoría es requerida'],
+      },
+      description: {
+        type: String,
+        default: '',
+      },
+      date: {
+        type: Date,
+        default: Date.now,
+      },
+      isRecurrent: {
+        type: Boolean,
+        default: false,
+      },
+      recurrenceFrequency: {
+        type: String,
+        enum: ['none', 'daily', 'weekly', 'monthly', 'yearly'],
+        default: 'none',
+      },
+      tags: {
+        type: [String],
+        default: [],
+      },
+    });
+    
+    const Transaction = mongoose.models.Transaction || mongoose.model('Transaction', TransactionSchema);
+    console.log('[ENTRIES] Modelo Transaction definido:', !!Transaction);
+    
     // Convertir userId string a ObjectId
-    const mongoose = require('mongoose');
     const userObjectId = new mongoose.Types.ObjectId(auth.userId);
     console.log('[ENTRIES] UserID convertido a ObjectId:', userObjectId);
     
