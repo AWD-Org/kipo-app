@@ -7,18 +7,29 @@ import Transaction from '../../../../models/Transaction';
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request) {
+  console.log('[ENTRIES] POST request iniciado');
   try {
     // 1. Autenticar usando Bearer token
+    console.log('[ENTRIES] Iniciando autenticación Bearer...');
     const auth = await authenticateBearer(req);
+    console.log('[ENTRIES] Resultado autenticación:', auth ? 'SUCCESS' : 'FAILED');
+    
     if (!auth) {
+      console.log('[ENTRIES] Token inválido - retornando 401');
       return NextResponse.json(
         { 
           error: 'Token inválido o expirado',
-          code: 'INVALID_TOKEN'
+          code: 'INVALID_TOKEN',
+          debug: {
+            environment: process.env.NODE_ENV,
+            timestamp: new Date().toISOString()
+          }
         },
         { status: 401 }
       );
     }
+
+    console.log('[ENTRIES] Usuario autenticado:', auth.userId);
 
     // 2. Parsear body
     let body;
