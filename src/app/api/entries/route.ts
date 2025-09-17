@@ -2,8 +2,6 @@
 import { NextResponse } from 'next/server';
 import { authenticateBearer } from '@/lib/authBearer';
 import { connectToDatabase } from '@/lib/mongodb';
-import Transaction from '../../../../models/Transaction';
-// Cambiar el import del modelo
 const mongoose = require('mongoose');
 
 export const dynamic = 'force-dynamic';
@@ -115,81 +113,20 @@ export async function POST(req: Request) {
       transactionDate = new Date();
     }
 
-    // 6. Crear transacción
-    console.log('[ENTRIES] Iniciando creación de transacción...');
+    // 6. Crear transacción usando MongoDB directo
+    console.log('[ENTRIES] Iniciando creación de transacción con MongoDB directo...');
     await connectToDatabase();
-    console.log('[ENTRIES] Conexión a DB para transacción establecida');
+    console.log('[ENTRIES] Conexión a DB establecida');
     
-    console.log('[ENTRIES] Datos para crear transacción:', {
-      userId: auth.userId,
-      type: typeMapping[type as keyof typeof typeMapping],
-      amount: Number(amount),
-      category: category.trim(),
-      description: note || `Creado desde iOS Shortcuts - ${currency}`,
-      date: transactionDate,
-      isRecurrent: false,
-      recurrenceFrequency: 'none',
-      tags: ['shortcut', 'ios']
-    });
-    
-    console.log('[ENTRIES] Llamando a Transaction.create...');
-    
-    // Definir el modelo Transaction directamente aquí
-    console.log('[ENTRIES] Definiendo modelo Transaction...');
-    
-    const TransactionSchema = new mongoose.Schema({
-      user: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
-        required: true,
-      },
-      type: {
-        type: String,
-        enum: ['ingreso', 'gasto'],
-        required: [true, 'El tipo de transacción es requerido'],
-      },
-      amount: {
-        type: Number,
-        required: [true, 'El monto es requerido'],
-      },
-      category: {
-        type: String,
-        required: [true, 'La categoría es requerida'],
-      },
-      description: {
-        type: String,
-        default: '',
-      },
-      date: {
-        type: Date,
-        default: Date.now,
-      },
-      isRecurrent: {
-        type: Boolean,
-        default: false,
-      },
-      recurrenceFrequency: {
-        type: String,
-        enum: ['none', 'daily', 'weekly', 'monthly', 'yearly'],
-        default: 'none',
-      },
-      tags: {
-        type: [String],
-        default: [],
-      },
-    });
-    
-    const Transaction = mongoose.models.Transaction || mongoose.model('Transaction', TransactionSchema);
-    console.log('[ENTRIES] Modelo Transaction definido:', !!Transaction);
-    
-    // Convertir userId string a ObjectId
-    const userObjectId = new mongoose.Types.ObjectId(auth.userId);
-    console.log('[ENTRIES] UserID convertido a ObjectId:', userObjectId);
-    
-    let transaction;
     try {
-      transaction = await Transaction.create({
-        user: userObjectId, // Usar ObjectId en lugar de string
+      // Obtener la conexión directa de MongoDB
+      const connection = mongoose.connection;
+      const db = connection.db;
+      
+      console.log('[ENTRIES] Base de datos obtenida:', db.databaseName);
+      
+      const transactionData = {
+        user: new mongoose.Types.ObjectId(auth.userId),
         type: typeMapping[type as keyof typeof typeMapping],
         amount: Number(amount),
         category: category.trim(),
@@ -197,63 +134,60 @@ export async function POST(req: Request) {
         date: transactionDate,
         isRecurrent: false,
         recurrenceFrequency: 'none',
-        tags: ['shortcut', 'ios'], // Tags para identificar origen
-      });
+        tags: ['shortcut', 'ios'],
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
       
-      console.log('[ENTRIES] Transaction.create completado exitosamente!');
-      console.log('[ENTRIES] ID de transacción creada:', transaction._id?.toString());
-      console.log('[ENTRIES] Objeto transacción completo:', JSON.stringify(transaction, null, 2));
+      console.log('[ENTRIES] Datos a insertar:', JSON.stringify(transactionData, null, 2));
       
-    } catch (createError) {
-      console.error('[ENTRIES] ERROR en Transaction.create:', createError);
-      if (createError && typeof createError === 'object' && 'stack' in createError) {
-        console.error('[ENTRIES] Stack trace:', (createError as { stack?: string }).stack);
+      // Insertar directamente en la colección
+      const result = await db.collection('transactions').insertOne(transactionData);
+      
+      console.log('[ENTRIES] Resultado de inserción:', result);
+      console.log('[ENTRIES] ID insertado:', result.insertedId?.toString());
+      
+      if (!result.insertedId) {
+        throw new Error('No se pudo insertar la transacción');
+      }
+      
+      console.log('[ENTRIES] Transacción creada exitosamente con ID:', result.insertedId.toString());
+      
+      // 7. Respuesta exitosa
+      return NextResponse.json({
+        success: true,
+        data: {
+          id: result.insertedId.toString(),
+          type,
+          amount,
+          category,
+          note,
+          currency,
+          createdAt: transactionDate.toISOString(),
+          source: 'shortcut',
+        },
+        message: `${type === 'expense' ? 'Gasto' : 'Ingreso'} registrado correctamente`
+      }, { status: 201 });
+      
+    } catch (insertError) {
+      console.error('[ENTRIES] ERROR en inserción directa:', insertError);
+      if (insertError instanceof Error) {
+        console.error('[ENTRIES] Stack trace:', insertError.stack);
       }
       
       return NextResponse.json(
         { 
           error: 'Error al crear transacción',
-          code: 'CREATE_FAILED',
-          details: (createError && typeof createError === 'object' && 'message' in createError) ? (createError as { message?: string }).message : String(createError)
+          code: 'INSERT_FAILED',
+          details: insertError instanceof Error ? insertError.message : String(insertError)
         },
         { status: 500 }
       );
     }
-    
-    console.log('[ENTRIES] Transaction.create completado. ID:', transaction._id?.toString());
-    console.log('[ENTRIES] Transacción creada exitosamente:', transaction);
-
-    // 7. Respuesta exitosa
-    return NextResponse.json({
-      success: true,
-      data: {
-        id: transaction._id.toString(),
-        type,
-        amount,
-        category,
-        note,
-        currency,
-        createdAt: transaction.date.toISOString(),
-        source: 'shortcut',
-      },
-      message: `${type === 'expense' ? 'Gasto' : 'Ingreso'} registrado correctamente`
-    }, { status: 201 });
 
   } catch (error) {
     console.error('[entries] POST Error:', error);
     
-    // Manejo de errores específicos de Mongoose
-    if (error && typeof error === 'object' && 'name' in error && (error as any).name === 'ValidationError') {
-      return NextResponse.json(
-        { 
-          error: 'Datos inválidos',
-          code: 'VALIDATION_ERROR',
-          details: (error as any).message
-        },
-        { status: 400 }
-      );
-    }
-
     return NextResponse.json(
       { 
         error: 'Error interno del servidor',
@@ -266,7 +200,7 @@ export async function POST(req: Request) {
 
 export async function GET(req: Request) {
   try {
-    // Obtener transacciones del usuario autenticado (opcional para debug)
+    // Obtener transacciones del usuario autenticado
     const auth = await authenticateBearer(req);
     if (!auth) {
       return NextResponse.json(
@@ -285,17 +219,20 @@ export async function GET(req: Request) {
     const limit = parseInt(url.searchParams.get('limit') || '10');
     const offset = parseInt(url.searchParams.get('offset') || '0');
 
-    const transactions = await Transaction.find({ 
-      user: auth.userId 
-    })
-    .sort({ date: -1 })
-    .limit(Math.min(limit, 100)) // Máximo 100
-    .skip(offset)
-    .lean();
+    // Usar MongoDB directo
+    const connection = mongoose.connection;
+    const db = connection.db;
+    
+    const transactions = await db.collection('transactions')
+      .find({ user: new mongoose.Types.ObjectId(auth.userId) })
+      .sort({ date: -1 })
+      .limit(Math.min(limit, 100))
+      .skip(offset)
+      .toArray();
 
     // Mapear a formato amigable para Shortcuts
-    const formattedTransactions = transactions.map(tx => ({
-      id: (tx._id as string | { toString(): string }).toString(),
+    const formattedTransactions = transactions.map((tx: { _id: { toString: () => any; }; type: string; amount: any; category: any; description: any; date: { toISOString: () => any; }; tags: any; }) => ({
+      id: tx._id.toString(),
       type: tx.type === 'gasto' ? 'expense' : 'income',
       amount: tx.amount,
       category: tx.category,
